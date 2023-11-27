@@ -1,4 +1,3 @@
-import pytest
 from sqlalchemy.engine import Engine
 from ez_rest.modules.db.services import DbServices
 import os

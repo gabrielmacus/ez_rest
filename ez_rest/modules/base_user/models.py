@@ -1,20 +1,19 @@
-from ..base_crud.models import BaseModel
-from ..role.models import Role
+from ..crud.models import BaseModel, BaseDTO
+from ..role.models import RoleModel, RoleDTO
 from pydantic import BaseModel as PydanticModel
-from typing import List, Optional, TypeVar, Generic
-from sqlmodel import Field, Relationship, SQLModel, Column, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy import BigInteger
+from sqlalchemy import BigInteger,ForeignKey,String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-class BaseUser(BaseModel, table=False):
-    __abstract__ = True
+class BaseUserModel(BaseModel):
+    __tablename__ = "users"
+    role_id: Mapped[int] = mapped_column(BigInteger(), ForeignKey(RoleModel.id))
+    role:Mapped[RoleModel] = relationship(lazy="joined")
+    password:Mapped[str] = mapped_column(String(200))
 
-    role_id:int = Field(sa_column=Column(BigInteger(), ForeignKey("role.id")))
-    role:Role = Relationship(sa_relationship=relationship("Role", lazy="joined")) #generic_relationship(TRole, role_id)
+class BaseUserDTO(BaseDTO):
+    role_id:int
+    role:RoleDTO
 
-    password:str
-    
-    
 class TokenResponse(PydanticModel):
     access_token:str
     refresh_token:str

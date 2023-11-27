@@ -1,21 +1,39 @@
+from typing import Type
 import pytest
-from ez_rest.modules.base_crud.models import BaseModel
-from ez_rest.modules.base_crud.repository import BaseRepository
-from sqlmodel import SQLModel
-from datetime import datetime
+from ez_rest.modules.crud.models import BaseModel
+from ez_rest.modules.crud.repository import BaseRepository
+from datetime import datetime, UTC
+from ez_rest.modules.db.services import DbServices
 from tests.mock_db_services import MockDbServices
-from sqlmodel import SQLModel
+from sqlalchemy import Table, Column, MetaData, Integer, String, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
 
-class Commodity(BaseModel, table=True):
-     name:str
-     category:str
+meta = MetaData()
+commodities = Table(
+    'commodities',
+    meta,
+    Column('created_at',DateTime),
+    Column('updated_at',DateTime),
+    Column('deleted_at',DateTime),
+    Column('id', Integer, primary_key=True),
+    Column('name', String),
+    Column('category',String)
+)
+
+class Commodity(BaseModel):
+     __tablename__ = "commodities"
+     name:Mapped[str] = mapped_column(String(100))
+     category:Mapped[str] = mapped_column(String(100))
+
+class CommoditiesRepository(BaseRepository):
+    def __init__(self, db_services: DbServices = None) -> None:
+        super().__init__(Commodity, db_services)
 
 @pytest.fixture
 def repository():
     db_services = MockDbServices()
     engine = db_services.get_engine()
-
-    SQLModel.metadata.create_all(engine)
+    meta.create_all(engine)
 
     return BaseRepository(Commodity, db_services)
 
@@ -33,7 +51,7 @@ def test_read(repository, name, category, include_deleted):
         id=1,
         name=name,
         category=category,
-        deleted_at=None if include_deleted is False else datetime.utcnow()
+        deleted_at=None if include_deleted is False else datetime.now(UTC)
     )
     item = repository.create(item)
     items = repository.read(include_deleted=include_deleted)
@@ -96,7 +114,7 @@ def test_count(repository, items_generated,include_deleted):
             id=i,
             name="Demo",
             category="Food", 
-            deleted_at=None if include_deleted is False else datetime.utcnow())
+            deleted_at=None if include_deleted is False else  datetime.now(UTC))
         item = repository.create(item)
 
     assert repository.count(include_deleted=include_deleted) == items_generated

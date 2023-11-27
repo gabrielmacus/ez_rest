@@ -1,12 +1,11 @@
 from typing import Generic, TypeVar, Type, List
-from .models import BaseUser
-from ..base_crud.repository import BaseRepository
+from .models import BaseUserModel
+from ..crud.repository import BaseRepository
 from ..password.services import PaswordServices
 from ..db.services import DbServices
-from sqlmodel import or_
-from sqlmodel import Session, select
+from sqlalchemy import or_
 
-T = TypeVar("T", bound=BaseUser)
+T = TypeVar("T", bound=BaseUserModel)
 
 class BaseUserRepository(Generic[T], BaseRepository[T]):
     _password_services:PaswordServices

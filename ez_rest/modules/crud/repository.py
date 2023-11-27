@@ -1,9 +1,9 @@
 from typing import List, TypeVar, Generic, Type
-from sqlmodel import Session, select
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 from ..db.services import DbServices
 from .models import BaseModel
-from datetime import datetime
+from datetime import datetime, UTC
 from abc import ABC
 
 T = TypeVar("T", bound=BaseModel)
@@ -36,7 +36,7 @@ class BaseRepository(ABC, Generic[T]):
         with Session(self._db_services.get_engine()) as session:
             statement = select(self._model) \
                 .where(*query)
-            
+
             if include_deleted == False:
                 statement = statement \
                     .where(self._model.deleted_at == None)
@@ -45,21 +45,21 @@ class BaseRepository(ABC, Generic[T]):
                 .limit(limit) \
                 .offset(offset)
 
-            results = session.exec(statement)
-            items = results.all()
+            results = session.execute(statement)
+            items = results.scalars().all()
         return items
     
     def updateById(self,updatedItem:T, id:int):
         with Session(self._db_services.get_engine()) as session:
-            updatedItem.updated_at = datetime.utcnow()
+            updatedItem.updated_at =  datetime.now(UTC)
             
             statement = select(self._model).where(self._model.id == id)
-            item = session.exec(statement).one()
+            item = session.execute(statement).scalar_one()
             
-            for key, value in updatedItem.dict().items():
-                if key == "id": continue
+            for key, value in updatedItem.to_dict().items():
+                if key == "id" : continue
                 setattr(item, key, value)
-            
+
             session.add(item)
             session.commit()
             session.refresh(item)
@@ -69,9 +69,10 @@ class BaseRepository(ABC, Generic[T]):
     def deleteById(self, id:int, soft_delete:bool = True):
         with Session(self._db_services.get_engine()) as session:
             statement = select(self._model).where(self._model.id == id)
-            item = session.exec(statement).one()
+            item = session.execute(statement).scalar_one()
+            
             if soft_delete:
-                item.deleted_at = datetime.utcnow()
+                item.deleted_at = datetime.now(UTC)
                 session.add(item)
             else:
                 session.delete(item)

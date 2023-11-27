@@ -1,13 +1,16 @@
-from sqlmodel import JSON, Field, Column, Relationship
-from typing import List, Optional, TypeVar, Generic
-from ..base_crud.models import BaseModel
+from typing import List
+from ..crud.models import BaseModel, BaseDTO
+from sqlalchemy.orm import mapped_column, Mapped
+from sqlalchemy import JSON, String, Boolean
 
 
-class Role(BaseModel, table=True):
+class RoleModel(BaseModel):
+    __tablename__ = "roles"
+    name:Mapped[str] = mapped_column(String(100), unique=True)
+    is_admin:Mapped[bool] = mapped_column(Boolean(), default = False)
+    scopes:Mapped[List[str]] = mapped_column(JSON(), default = [])
+
+class RoleDTO(BaseDTO):
     name:str
-    is_admin:bool = False
-    scopes:List[str] = Field(sa_column=Column(JSON))
-
-    # Needed for Column(JSON)
-    class Config:
-        arbitrary_types_allowed = True
+    is_admin:bool
+    scopes:List[str]

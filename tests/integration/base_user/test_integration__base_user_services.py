@@ -1,49 +1,72 @@
 import pytest
 from tests.mock_db_services import MockDbServices
-from sqlmodel import SQLModel
-from ez_rest.modules.role.models import Role
+from ez_rest.modules.role.models import RoleModel
 from ez_rest.modules.role.repository import RoleRepository
 from ez_rest.modules.base_user.services import BaseUserServices
-from ez_rest.modules.base_user.models import BaseUser
+from ez_rest.modules.base_user.models import BaseUserModel
 from ez_rest.modules.base_user.repository import BaseUserRepository
 from ez_rest.modules.db.services import DbServices
 from ez_rest.modules.password.services import PaswordServices
 from fastapi import HTTPException
 import time_machine
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from jose import jwt
 
-from ez_rest.modules.role.models import Role
-from sqlmodel import Field, Relationship, SQLModel, Column, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy import BigInteger
+from sqlalchemy import Table, Column, MetaData, Integer,Text, String, DateTime, ForeignKey, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
+
+meta = MetaData()
+users = Table(
+    'users',
+    meta,
+    Column('created_at',DateTime),
+    Column('updated_at',DateTime),
+    Column('deleted_at',DateTime),
+    Column('id', Integer, primary_key=True),
+    Column('role_id',Integer, ForeignKey(RoleModel.id)),
+    Column('password', String),
+    Column('username',String),
+    Column('phone',String)
+)
+roles = Table(
+    'roles',
+    meta,
+    Column('created_at',DateTime),
+    Column('updated_at',DateTime),
+    Column('deleted_at',DateTime),
+    Column('id', Integer, primary_key=True),
+    Column('name',String),
+    Column('is_admin', Boolean),
+    Column('scopes', Text)
+)
 
 
-
-class User2(BaseUser, table=True):
-    
-    username:str
-    phone:str
-    #role_id:int = Field(sa_column=Column(BigInteger(), ForeignKey("role.id")))
-    #role:Role = Relationship(sa_relationship=relationship("Role", lazy="joined")) #generic_relationship(TRole, role_id)
+class UserModel(BaseUserModel):
+    #__abstract__ = True
+    username:Mapped[str] = mapped_column(String(100))
+    phone:Mapped[str] = mapped_column(String(100))
+    #role:RoleModel = Relationship(sa_relationship=relationship("RoleModel", lazy="joined"))
 
 
-class UserServices(BaseUserServices[User2]):
+class UserServices(BaseUserServices[UserModel]):
     _subject_claim_field = "username"
 
-class UserRepository(BaseUserRepository[User2]):
+class UserRepository(BaseUserRepository[UserModel]):
     _identity_fields = ['username','phone']
 
     def __init__(self, 
                  db_services: DbServices = None, 
                  password_services: PaswordServices = None) -> None:
-        super().__init__(User2, db_services, password_services)
+        super().__init__(UserModel, db_services, password_services)
+
 
 @pytest.fixture
 def repository():
     db_services = MockDbServices()
     engine = db_services.get_engine()
-    SQLModel.metadata.create_all(engine)
+    meta.create_all(engine)
 
     return UserRepository(db_services=db_services)
 
@@ -51,7 +74,7 @@ def repository():
 def role_repository():
     db_services = MockDbServices()
     engine = db_services.get_engine()
-    SQLModel.metadata.create_all(engine)
+    meta.create_all(engine)
 
     return RoleRepository(db_services=db_services)
 
@@ -68,19 +91,19 @@ def test_validate_user(repository, identity_value, password, expected_id):
     services = UserServices(
         repository=repository
     )
-    user1 = User2(
+    user1 = UserModel(
         id=1,
         username="user",
         phone="4231234",
         password="123456"
     )
-    user2 = User2(
+    user2 = UserModel(
         id=2,
         username="user2",
         phone="1111111",
         password="%&4$231"
     )
-    user3 = User2(
+    user3 = UserModel(
         id=3,
         username="user3",
         phone="22222222",
@@ -116,13 +139,13 @@ def test_handle_token_generation(repository, role_repository, monkeypatch, usern
     )
 
     scopes = ["user:read","user:create"]
-    role = Role(
+    role = RoleModel(
         id=1,
         name="Sales Manager",
         scopes=scopes
     )
 
-    user = User2(
+    user = UserModel(
         id=1,
         username="myuser",
         phone="4231234",
@@ -132,32 +155,28 @@ def test_handle_token_generation(repository, role_repository, monkeypatch, usern
 
     role_repository.create(role)
     repository.create(user)
-    
 
-    dt = datetime(2020,1,1,0,0,0)
+    dt = datetime(2020,1,1,0,0,0,0,UTC)
     with time_machine.travel(dt):
         
         if not exception_expected:
             token_response = services.handle_token_generation(username, password)
-
             payload = jwt.decode(token_response.access_token, "qwerty", algorithms=["HS256"])
+
             assert payload['sub'] == user.username
             assert payload["scopes"] == scopes
-            assert datetime.utcfromtimestamp(payload['exp']) == dt + timedelta(minutes=10)
-            assert datetime.utcfromtimestamp(payload['iat']) == dt
+            assert datetime.fromtimestamp(payload['exp'],UTC) == dt + timedelta(minutes=10)
+            assert datetime.fromtimestamp(payload['iat'],UTC) == dt
 
             payload = jwt.decode(token_response.refresh_token, "000000", algorithms=["HS256"])
             assert payload['sub'] == user.username
             assert payload["scopes"] == []
-            assert datetime.utcfromtimestamp(payload['exp']) == dt + timedelta(minutes=20)
-            assert datetime.utcfromtimestamp(payload['iat']) == dt
+            assert datetime.fromtimestamp(payload['exp'],UTC) == dt + timedelta(minutes=20)
+            assert datetime.fromtimestamp(payload['iat'],UTC) == dt
         else:
             with pytest.raises(HTTPException):
                 services.handle_token_generation(username, password)
         
-
-
-
 
 '''
 @pytest.mark.parametrize("env_var_prefix, expire_minutes", 
@@ -175,7 +194,7 @@ def test_create_token(repository, monkeypatch, env_var_prefix, expire_minutes):
     services = UserServices(
         repository=repository
     )
-    user = User2(
+    user = User(
         id=1,
         username="myuser",
         phone="4231234",

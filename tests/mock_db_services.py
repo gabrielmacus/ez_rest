@@ -1,7 +1,6 @@
 from sqlalchemy.engine import Engine
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
-from ez_rest.modules.db.services import DbServices
 import os
 
 

@@ -1,5 +1,5 @@
 from .repository import BaseUserRepository
-from .models import BaseUser, TokenResponse
+from .models import BaseUserModel, TokenResponse
 from ..password.services import PaswordServices
 from ..jwt.services import JWTServices
 from fastapi import HTTPException, status
@@ -10,7 +10,7 @@ import datetime
 import os
 from typing import Generic, TypeVar, Type, List
 
-T = TypeVar("T", bound=BaseUser)
+T = TypeVar("T", bound=BaseUserModel)
 
 
 class BaseUserServices(Generic[T]):
@@ -45,7 +45,6 @@ class BaseUserServices(Generic[T]):
         if user is None or not self._password_services\
                                     .verify_password(plain_password, user.password):
             return None
-        print("HERE!!",user)
         return user
            
     def create_token(self, 
@@ -149,8 +148,7 @@ class BaseUserServices(Generic[T]):
                 headers={"WWW-Authenticate":"Bearer"}
             )
         
-        # TODO: Load scopes associated to user role
-        scopes = []
+        scopes = user.role.scopes
         access_token = self.create_access_token(user, scopes)
         refresh_token = self.create_refresh_token(user)
 

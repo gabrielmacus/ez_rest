@@ -1,15 +1,16 @@
 from .repository import BaseUserRepository
 from .services import BaseUserServices
 from ez_rest.modules.pagination.services import PaginationServices
-from ..base_crud.controller import BaseController
+from ..crud.controller import BaseController
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from typing import Annotated, TypeVar, Type, Generic
 from fastapi.security import OAuth2PasswordRequestForm
-from .models import BaseUser
+from .models import BaseUserModel
+from abc import ABC
 
-T = TypeVar("T", bound=BaseUser)
+T = TypeVar("T", bound=BaseUserModel)
 
-class BaseUserController(Generic[T], BaseController[T]):
+class BaseUserController(Generic[T], BaseController[T], ABC):
     _services:BaseUserServices
 
     def __init__(self, 
