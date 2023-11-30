@@ -53,41 +53,37 @@ class ProductReadDTO(BaseDTO):
 mapper_services.register(
     ProductSaveDTO,
     Product,
-    lambda src : Product(
-        id=src.id,
-        name=src.product_name,
-        category=src.product_category
-    )
+    lambda src : {
+        "id":src.id,
+        "name":src.product_name,
+        "category":src.product_category
+    }
 ) 
 
 
 def map_product_read_dto(src:ProductSavePartialDTO):
     data = {}
-    if hasattr(src, "product_name"):
-        data["name"] = src.product_name
-    if hasattr(src, "product_category"):
-        data["category"] = src.product_category
+    partial_data = src.dict(exclude_unset=True)
+    if "product_name" in partial_data:
+        data["name"] = partial_data["product_name"]
+    if "product_category" in partial_data:
+        data["category"] = partial_data["product_category"]
 
-    return Product(**data)
+    return data
 
 mapper_services.register(
     ProductSavePartialDTO,
     Product,
     map_product_read_dto
-    #lambda src : Product(
-    #    id=src.id,
-    #    name=src.product_name,
-    #    category=src.product_category
-    #)
 )
    
 mapper_services.register(
     Product,
     ProductReadDTO,
-    lambda src : ProductReadDTO(
-        id=src.id,
-        name_category=f'{src.name} {src.category}'
-    )
+    lambda src : {
+        "id":src.id,
+        "name_category":f'{src.name} {src.category}' if src.category is not None else src.name
+    }
 )
 
 class ProductsRepository(BaseRepository[Product]):
@@ -179,7 +175,13 @@ def test_read_by_id(controller,id, found):
         with pytest.raises(HTTPException):
              item = controller.read_by_id(id)
 
-def test_update_by_id(controller):
+
+@pytest.mark.parametrize("partial_data, expected_name_category", 
+                         [({"product_name":"Carrot"},"Carrot Food"),
+                          ({"product_name":"Carrot","product_category":None},"Carrot"),
+                          ({"product_name":"Ball","product_category":"Sports"},"Ball Sports")
+                          ])
+def test_update_by_id(controller, partial_data, expected_name_category):
     controller.create(ProductSaveDTO(
         product_category="Food",
         product_name=f"Apple"
@@ -187,11 +189,9 @@ def test_update_by_id(controller):
        
     controller.update_by_id(
         1,
-        ProductSavePartialDTO(
-         product_name="Carrot"
-        )
+        ProductSavePartialDTO(**partial_data)
     )
     
     updated_item = controller.read_by_id(1)
     
-    assert updated_item.name_category == "Carrot Food"
+    assert updated_item.name_category == expected_name_category

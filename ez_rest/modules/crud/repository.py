@@ -66,14 +66,14 @@ class BaseRepository(ABC, Generic[T]):
             item = results.scalar_one_or_none()
         return item
     
-    def updateById(self,updatedItem:T, id:int):
-        with Session(self._db_services.get_engine()) as session:
-            updatedItem.updated_at =  datetime.utcnow()
-            
+    def updateById(self,partial_data:dict, id:int):
+        with Session(self._db_services.get_engine()) as session:            
             statement = select(self._model).where(self._model.id == id)
             item = session.execute(statement).scalar_one()
+            item.updated_at = datetime.utcnow()
             
-            for key, value in updatedItem.to_dict().items():
+            for key in partial_data:
+                value = partial_data[key]
                 if key == "id" : continue
                 setattr(item, key, value)
 

@@ -72,7 +72,7 @@ class BaseController(ABC, Generic[TModel]):
 
     def update_by_id( self, 
                     id:int,
-                    partial_data:TDtoIn,
+                    partial_item:TDtoIn,
                     type_in:Type[TDtoIn],
                     type_out:Type[TModel]):
         
@@ -80,16 +80,11 @@ class BaseController(ABC, Generic[TModel]):
         if item is None:
             raise HTTPException(404)
         
-        partial_item = self._mapper_services.map(
-            type_in(**partial_data.dict(exclude_unset=True)),
+        partial_data = self._mapper_services.map_dict(
+            type_in(**partial_item.dict(exclude_unset=True)),
             type_out
         )
         
-        #for key in item.to_dict().keys():
-        #    if hasattr(partial_item, key):
-        #        print(key)
-        #        setattr(item, key, getattr(partial_item, key))
-        
-        self._repository.updateById(partial_item, id)
+        self._repository.updateById(partial_data, id)
         
         

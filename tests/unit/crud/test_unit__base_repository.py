@@ -7,6 +7,7 @@ from ez_rest.modules.db.services import DbServices
 from tests.mock_db_services import MockDbServices
 from sqlalchemy import Table, Column, MetaData, Integer, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
+import time_machine
 
 meta = MetaData()
 commodities = Table(
@@ -89,18 +90,33 @@ def test_read_by_id(repository, id, found):
     else:
         assert item is None
 
-def test_update(repository):
-    item = Commodity(id=1,name="Demo",category="Food")
-    item = repository.create(item)
+@pytest.mark.parametrize("partial_data,expected_item", 
+                         [({"name":"Tomato"},{"name":"Tomato","category":"Food"}),
+                          ({"name":"Milk", "category":"Dairy"},{"name":"Milk","category":"Dairy"}),])
+def test_update(repository, partial_data, expected_item):
+    item = Commodity(id=1,name="Potato",category="Food")
+    item2 = Commodity(id=2,name="Ball",category="Sports")
+    
+    repository.create(item)
+    repository.create(item2)
 
-    item = Commodity(name="Vegetable", category='Food 2')
-    repository.updateById(item, 1)
-    items = repository.read([Commodity.category == 'Food 2'])
+    update_time = datetime(2020,1,1,0,0,0,0)
+    with time_machine.travel(update_time):
+        repository.updateById(partial_data, 1)
 
-    assert len(items) == 1 and \
-            items[0].id == 1 and \
-            items[0].category == 'Food 2' and \
-            items[0].name == "Vegetable"
+    items = repository.read()
+    item = [i for i in items if i.id == 1][0]
+    item2 = [i for i in items if i.id == 2][0]
+    
+
+    assert item.category == expected_item["category"]
+    assert item.name == expected_item["name"]
+    assert item.updated_at.strftime("%d-%m-%Y") == "01-01-2020"
+
+    assert item2.updated_at is None
+    assert item2.category == "Sports"
+    assert item2.name == "Ball"
+    
 
 def test_update__not_found(repository):
     item = Commodity(name="Vegetable", category='Food 2')

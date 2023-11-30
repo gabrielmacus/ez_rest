@@ -16,14 +16,22 @@ class MapperServices:
     def register(self, 
                  source_type:Type[S], 
                  target_type:Type[T],
-                 map_fn:Callable[[S],T]):
+                 map_fn:Callable[[S],dict]):
         self._map_fn[f'{source_type.__name__}__{target_type.__name__}'] = map_fn
+
+    def map_dict(self,
+                 source:S,
+                 target:Type[T]):
+            result:dict = self._map_fn[f'{source.__class__.__name__}__{target.__name__}'](source)
+            return result
 
     def map(self,
                 source:S,
                 target_type:Type[T]
                 ) -> T:
-        result:T = self._map_fn[f'{source.__class__.__name__}__{target_type.__name__}'](source)
+        
+        data = self.map_dict(source,target_type)
+        result = target_type(**data)
         return result
 
 mapper_services = MapperServices()
