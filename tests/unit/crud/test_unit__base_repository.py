@@ -2,7 +2,7 @@ from typing import Type
 import pytest
 from ez_rest.modules.crud.models import BaseModel
 from ez_rest.modules.crud.repository import BaseRepository
-from datetime import datetime, UTC
+from datetime import datetime
 from ez_rest.modules.db.services import DbServices
 from tests.mock_db_services import MockDbServices
 from sqlalchemy import Table, Column, MetaData, Integer, String, DateTime
@@ -51,7 +51,7 @@ def test_read(repository, name, category, include_deleted):
         id=1,
         name=name,
         category=category,
-        deleted_at=None if include_deleted is False else datetime.now(UTC)
+        deleted_at=None if include_deleted is False else datetime.utcnow()
     )
     item = repository.create(item)
     items = repository.read(include_deleted=include_deleted)
@@ -71,6 +71,23 @@ def test_read__filter_not_found(repository):
     items = repository.read([Commodity.category == 'Sports', Commodity.name == 'Demo'])
 
     assert len(items) == 0
+
+@pytest.mark.parametrize("id,found", 
+                         [(1,True),
+                          (2,True),
+                          (3,False),
+                          (4,False)])
+def test_read_by_id(repository, id, found):
+    item1 = Commodity(id=1,name="Demo",category="Food")    
+    item2 = Commodity(id=2,name="Demo 2",category="Sports")
+    repository.create(item1)
+    repository.create(item2)
+
+    item = repository.readById(id)
+    if found:
+        assert item.id == id
+    else:
+        assert item is None
 
 def test_update(repository):
     item = Commodity(id=1,name="Demo",category="Food")
@@ -114,7 +131,7 @@ def test_count(repository, items_generated,include_deleted):
             id=i,
             name="Demo",
             category="Food", 
-            deleted_at=None if include_deleted is False else  datetime.now(UTC))
+            deleted_at=None if include_deleted is False else  datetime.utcnow())
         item = repository.create(item)
 
     assert repository.count(include_deleted=include_deleted) == items_generated

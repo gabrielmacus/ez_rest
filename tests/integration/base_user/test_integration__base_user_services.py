@@ -9,7 +9,7 @@ from ez_rest.modules.db.services import DbServices
 from ez_rest.modules.password.services import PaswordServices
 from fastapi import HTTPException
 import time_machine
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta
 from jose import jwt
 
 from sqlalchemy.orm import relationship
@@ -156,7 +156,7 @@ def test_handle_token_generation(repository, role_repository, monkeypatch, usern
     role_repository.create(role)
     repository.create(user)
 
-    dt = datetime(2020,1,1,0,0,0,0,UTC)
+    dt = datetime(2020,1,1,0,0,0,0)
     with time_machine.travel(dt):
         
         if not exception_expected:
@@ -165,14 +165,14 @@ def test_handle_token_generation(repository, role_repository, monkeypatch, usern
 
             assert payload['sub'] == user.username
             assert payload["scopes"] == scopes
-            assert datetime.fromtimestamp(payload['exp'],UTC) == dt + timedelta(minutes=10)
-            assert datetime.fromtimestamp(payload['iat'],UTC) == dt
+            assert datetime.utcfromtimestamp(payload['exp']) == dt + timedelta(minutes=10)
+            assert datetime.utcfromtimestamp(payload['iat']) == dt
 
             payload = jwt.decode(token_response.refresh_token, "000000", algorithms=["HS256"])
             assert payload['sub'] == user.username
             assert payload["scopes"] == []
-            assert datetime.fromtimestamp(payload['exp'],UTC) == dt + timedelta(minutes=20)
-            assert datetime.fromtimestamp(payload['iat'],UTC) == dt
+            assert datetime.utcfromtimestamp(payload['exp']) == dt + timedelta(minutes=20)
+            assert datetime.utcfromtimestamp(payload['iat']) == dt
         else:
             with pytest.raises(HTTPException):
                 services.handle_token_generation(username, password)

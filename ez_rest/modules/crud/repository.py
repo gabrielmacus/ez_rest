@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from ..db.services import DbServices
 from .models import BaseModel
-from datetime import datetime, UTC
+from datetime import datetime
 from abc import ABC
 
 T = TypeVar("T", bound=BaseModel)
@@ -49,9 +49,26 @@ class BaseRepository(ABC, Generic[T]):
             items = results.scalars().all()
         return items
     
+    def readById(
+            self,
+            id:int,
+            include_deleted:bool = False
+            ) -> T:
+        with Session(self._db_services.get_engine()) as session:
+            statement = select(self._model) \
+                        .where(self._model.id == id)
+
+            if include_deleted == False:
+                statement = statement \
+                    .where(self._model.deleted_at == None)
+                        
+            results = session.execute(statement)
+            item = results.scalar_one_or_none()
+        return item
+    
     def updateById(self,updatedItem:T, id:int):
         with Session(self._db_services.get_engine()) as session:
-            updatedItem.updated_at =  datetime.now(UTC)
+            updatedItem.updated_at =  datetime.utcnow()
             
             statement = select(self._model).where(self._model.id == id)
             item = session.execute(statement).scalar_one()
@@ -72,7 +89,7 @@ class BaseRepository(ABC, Generic[T]):
             item = session.execute(statement).scalar_one()
             
             if soft_delete:
-                item.deleted_at = datetime.now(UTC)
+                item.deleted_at = datetime.utcnow()
                 session.add(item)
             else:
                 session.delete(item)
@@ -83,7 +100,6 @@ class BaseRepository(ABC, Generic[T]):
             include_deleted:bool = False) -> int:
         query = query if query != None else []
         with Session(self._db_services.get_engine()) as session:
-            # Not optimized (slow) -> session.query(Product).count()
             query = session\
                 .query(func.count(self._model.id))\
                 .where(*query)

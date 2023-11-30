@@ -13,13 +13,13 @@ class MapperServices:
     
     _map_fn:dict = {}
     
-    def register[S,T](self, 
+    def register(self, 
                  source_type:Type[S], 
                  target_type:Type[T],
                  map_fn:Callable[[S],T]):
         self._map_fn[f'{source_type.__name__}__{target_type.__name__}'] = map_fn
 
-    def map[S,T](self,
+    def map(self,
                 source:S,
                 target_type:Type[T]
                 ) -> T:
