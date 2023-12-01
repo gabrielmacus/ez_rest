@@ -10,8 +10,8 @@ class BaseModel(DeclarativeBase):
     created_at:Mapped[datetime] = mapped_column(DateTime(), default=datetime.utcnow())
     deleted_at:Mapped[Optional[datetime]]
     updated_at:Mapped[Optional[datetime]]
-    def to_dict(self):
-        return {field.name:getattr(self, field.name) for field in self.__table__.c}
+    #def to_dict(self):
+    #    return {field.name:getattr(self, field.name) for field in self.__table__.c}
 
 class BaseDTO(PydanticModel):
     id:int
