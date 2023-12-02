@@ -5,7 +5,7 @@ from .models import BaseModel, BaseDTO
 from typing import TypeVar,Generic,List, Type
 from ez_rest.modules.mapper.services import mapper_services as mapper, MapperServices
 from abc import ABC, abstractmethod
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 TModel = TypeVar("TModel", bound=BaseModel)
 TDtoIn = TypeVar("TDtoIn", bound=BaseDTO)
@@ -66,7 +66,7 @@ class BaseController(ABC, Generic[TModel]):
                 type_out:Type[TDtoOut]) -> TDtoOut:
         item = self._repository.readById(id)
         if item is None:
-            raise HTTPException(404)
+            raise HTTPException(status.HTTP_404_NOT_FOUND)
         
         return self._mapper_services.map(item, type_out)
 
@@ -78,7 +78,7 @@ class BaseController(ABC, Generic[TModel]):
         
         item = self._repository.readById(id)
         if item is None:
-            raise HTTPException(404)
+            raise HTTPException(status.HTTP_404_NOT_FOUND)
         
         partial_data = self._mapper_services.map_dict(
             type_in(**partial_item.dict(exclude_unset=True)),

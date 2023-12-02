@@ -1,14 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from ..singleton.models import SingletonMeta
 import os
 
-class DbServices():
+class DbServices(metaclass=SingletonMeta):
     _engine:Engine = None
-    
-    def __new__(cls): # pragma: no cover
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(DbServices, cls).__new__(cls)
-        return cls.instance
 
     def get_engine(self) -> Engine:
         if self._engine == None:

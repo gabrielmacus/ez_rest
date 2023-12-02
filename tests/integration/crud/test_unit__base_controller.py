@@ -11,7 +11,7 @@ import pytest
 from ez_rest.modules.pagination.services import PaginationServices
 from automapper import mapper
 from datetime import datetime
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import BigInteger
@@ -172,26 +172,36 @@ def test_read_by_id(controller,id, found):
         item = controller.read_by_id(id)
         assert item.id == id
     else:
-        with pytest.raises(HTTPException):
+        with pytest.raises(HTTPException) as ex:
              item = controller.read_by_id(id)
+        assert ex.value.status_code == status.HTTP_404_NOT_FOUND
 
-
-@pytest.mark.parametrize("partial_data, expected_name_category", 
-                         [({"product_name":"Carrot"},"Carrot Food"),
-                          ({"product_name":"Carrot","product_category":None},"Carrot"),
-                          ({"product_name":"Ball","product_category":"Sports"},"Ball Sports")
+@pytest.mark.parametrize("id,partial_data, expected_name_category", 
+                         [(1,{"product_name":"Carrot"},"Carrot Food"),
+                          (1,{"product_name":"Carrot","product_category":None},"Carrot"),
+                          (1,{"product_name":"Ball","product_category":"Sports"},"Ball Sports"),
+                          (2,{"product_name":"Ball"},None),
+                          (3,{"product_name":"Ball","product_category":"Sports"},None)
                           ])
-def test_update_by_id(controller, partial_data, expected_name_category):
+def test_update_by_id(controller, id, partial_data, expected_name_category):
     controller.create(ProductSaveDTO(
         product_category="Food",
         product_name=f"Apple"
     ))
        
-    controller.update_by_id(
-        1,
-        ProductSavePartialDTO(**partial_data)
-    )
+
+    if expected_name_category != None:
+        controller.update_by_id(
+            id,
+            ProductSavePartialDTO(**partial_data)
+        )
+        updated_item = controller.read_by_id(id)
+        assert updated_item.name_category == expected_name_category
+    else:
+        with pytest.raises(HTTPException) as ex:
+            controller.update_by_id(
+                id,
+                ProductSavePartialDTO(**partial_data)
+            )
     
-    updated_item = controller.read_by_id(1)
-    
-    assert updated_item.name_category == expected_name_category
+        assert ex.value.status_code == status.HTTP_404_NOT_FOUND

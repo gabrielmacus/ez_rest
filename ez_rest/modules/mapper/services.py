@@ -1,15 +1,10 @@
 from typing import Type, Callable, TypeVar, Dict
+from ..singleton.models import SingletonMeta
 
 S = TypeVar("S")
 T = TypeVar("T")
 
-class MapperServices:
-    _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
+class MapperServices(metaclass=SingletonMeta):
     
     _map_fn:dict = {}
     
