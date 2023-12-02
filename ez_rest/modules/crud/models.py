@@ -8,6 +8,7 @@ class BaseModel(DeclarativeBase):
     __abstract__ = True
     id: Mapped[int] = mapped_column(BigInteger(), primary_key=True)
     created_at:Mapped[datetime] = mapped_column(DateTime(), default=datetime.utcnow())
+    # TODO: Index and/or add is_deleted field
     deleted_at:Mapped[Optional[datetime]]
     updated_at:Mapped[Optional[datetime]]
     #def to_dict(self):
