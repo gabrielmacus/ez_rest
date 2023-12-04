@@ -14,8 +14,8 @@ jobs:
     - name: Install requirements
       run: pip install -r requirements.txt
     - name: Run tests and collect coverage
-      run: python -m pytest --cov-report=lcov --cov .
-    - name: Test & publish code coverage
+      run: python -m pytest --cov-report=lcov --cov ./ez_rest
+    - name: Publish code coverage
       uses: paambaati/codeclimate-action@v5.0.0
       env:
         CC_TEST_REPORTER_ID: ${{ secrets.CODECLIMATE_TEST_REPORTER_ID }}
