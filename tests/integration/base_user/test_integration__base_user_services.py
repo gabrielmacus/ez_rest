@@ -5,7 +5,7 @@ from tests.mock_db_services import MockDbServices
 from ez_rest.modules.role.models import RoleModel
 from ez_rest.modules.role.repository import RoleRepository
 from ez_rest.modules.base_user.services import BaseUserServices
-from ez_rest.modules.base_user.models import BaseUserModel
+from ez_rest.modules.base_user.models import BaseUserModel, TokenConfig
 from ez_rest.modules.base_user.repository import BaseUserRepository
 from ez_rest.modules.db.services import DbServices
 from ez_rest.modules.password.services import PaswordServices
@@ -164,9 +164,11 @@ def test_create_token(repository,
     with time_machine.travel(dt):
         token = services.create_token(user,
                             scopes,
-                            expire_minutes,
-                            secret,
-                            "HS256")
+                            TokenConfig(
+                                algorithm="HS256",
+                                expire_minutes=expire_minutes,
+                                secret=secret
+                            ))
         payload = jwt.decode(token, secret)
 
     assert payload['sub'] == getattr(user, subject_claim_field)

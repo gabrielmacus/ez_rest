@@ -17,3 +17,8 @@ class BaseUserDTO(BaseDTO):
 class TokenResponse(PydanticModel):
     access_token:str
     refresh_token:str
+
+class TokenConfig(PydanticModel):
+    expire_minutes:int
+    secret:str
+    algorithm:str
