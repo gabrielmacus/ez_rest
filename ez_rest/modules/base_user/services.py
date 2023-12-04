@@ -1,5 +1,5 @@
 from .repository import BaseUserRepository
-from .models import BaseUserModel, TokenResponse
+from .models import BaseUserModel, TokenResponse, TokenConfig
 from ..password.services import PaswordServices
 from ..jwt.services import JWTServices
 from fastapi import HTTPException, status
@@ -9,7 +9,6 @@ from jose import JWTError
 import datetime
 import os
 from typing import Generic, TypeVar, Type, List
-from abc import ABC, abstractmethod
 from ..singleton.models import SingletonMeta
 
 TModel = TypeVar("TModel", bound=BaseUserModel)
@@ -55,9 +54,7 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
     def create_token(self, 
                      user:TModel, 
                      scopes:List[str],
-                     expire_minutes:int,
-                     secret:str,
-                     algorithm:str) -> str:
+                     token_config:TokenConfig) -> str:
         """_summary_
 
         Args:
@@ -70,7 +67,7 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
         Returns:
             str: Generated JWT
         """
-        expires_delta = datetime.timedelta(minutes=int(expire_minutes))
+        expires_delta = datetime.timedelta(minutes=int(token_config.expire_minutes))
         expiration_date = datetime.datetime.utcnow() + expires_delta
 
         data_to_encode = {
@@ -80,7 +77,9 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
             "scopes":scopes
         }
 
-        return self._jwt_services.encode(data_to_encode, secret, algorithm)
+        return self._jwt_services.encode(data_to_encode, 
+                                         token_config.secret, 
+                                         token_config.algorithm)
 
     def create_access_token(self,
                             user:TModel, 
@@ -104,9 +103,11 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
 
         return self.create_token(user, 
                                  scopes, 
-                                 expire_minutes, 
-                                 secret, 
-                                 algorithm)
+                                 TokenConfig(
+                                    expire_minutes = expire_minutes, 
+                                    secret = secret, 
+                                    algorithm = algorithm
+                                 ))
 
     def create_refresh_token(self,
                             user:TModel):
@@ -127,9 +128,11 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
         """
         return self.create_token(user, 
                                  [], 
-                                 expire_minutes, 
-                                 secret, 
-                                 algorithm)
+                                 TokenConfig(
+                                    expire_minutes = expire_minutes, 
+                                    secret = secret, 
+                                    algorithm = algorithm
+                                 ))
 
     def handle_token_generation(self, 
                               identity_value:str, 
@@ -191,17 +194,16 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
         Args:
             token_scopes (list[str]): _description_
             security_scopes (SecurityScopes): _description_
+        
         """
         for required_scope in required_scopes.scopes:
             required_resource,required_action = required_scope.split(":")
 
-            if f'!{required_scope}' in token_scopes:
+            if  (required_scope not in token_scopes and \
+                f'{required_resource}:*' not in token_scopes) or \
+                f'!{required_scope}' in token_scopes:
                 return False
-            
-            if  required_scope not in token_scopes and \
-                f'{required_resource}:*' not in token_scopes:
-                return False
-        
+
         return True
 
     def check_auth( self,
