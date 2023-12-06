@@ -81,7 +81,7 @@ class BaseController(ABC, Generic[TModel]):
             raise HTTPException(status.HTTP_404_NOT_FOUND)
         
         partial_data = self._mapper_services.map_dict(
-            type_in(**partial_item.dict(exclude_unset=True)),
+            type_in(**partial_item.model_dump(exclude_unset=True)),
             type_out
         )
         

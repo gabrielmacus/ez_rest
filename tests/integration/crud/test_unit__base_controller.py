@@ -9,14 +9,14 @@ from sqlalchemy import String
 from sqlalchemy.orm import mapped_column, Mapped
 import pytest
 from ez_rest.modules.pagination.services import PaginationServices
-from automapper import mapper
-from datetime import datetime
 from fastapi import HTTPException, status
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import BigInteger
 from sqlalchemy import Table, Column, MetaData, Integer,Text, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
+
+from pydantic import ValidationError
 
 meta = MetaData()
 roles = Table(
@@ -37,14 +37,12 @@ class Product(BaseModel):
      category:Mapped[str] = mapped_column(String(100))
 
 class ProductSaveDTO(BaseDTO):
-    id:Optional[int]
     product_name:str
     product_category:str
 
 class ProductSavePartialDTO(BaseDTO):
-    id:Optional[int]
-    product_name:Optional[str]
-    product_category:Optional[str]
+    product_name:Optional[str] = None
+    product_category:Optional[str] = None
 
 class ProductReadDTO(BaseDTO):
     name_category:str
@@ -63,7 +61,7 @@ mapper_services.register(
 
 def map_product_read_dto(src:ProductSavePartialDTO):
     data = {}
-    partial_data = src.dict(exclude_unset=True)
+    partial_data = src.model_dump(exclude_unset=True)
     if "product_name" in partial_data:
         data["name"] = partial_data["product_name"]
     if "product_category" in partial_data:
@@ -131,7 +129,7 @@ def controller():
 @pytest.mark.parametrize("limit,page,expected_pages,expected_items", 
                          [(3,1,2,3),
                           (3,2,2,2)])
-def test_read(controller, limit, page, expected_pages, expected_items):
+def test_controller_read(controller, limit, page, expected_pages, expected_items):
     for i in range(0,5):
         controller.create(ProductSaveDTO(
             product_category="Furniture",
@@ -145,20 +143,22 @@ def test_read(controller, limit, page, expected_pages, expected_items):
         result.page == page and \
         result.pages_count == expected_pages
 
-def test_create(controller):
-    item = controller.create(ProductSaveDTO(
-        product_category="Furniture",
-        product_name="Oven"
-    ))
+def test_controller_create(controller):
+
+    item = ProductSaveDTO(
+            product_category="Furniture",
+            product_name="Oven"
+        )
+    created_item = controller.create(item)
     
-    assert item.id == 1
+    assert created_item.id == 1
 
 
 @pytest.mark.parametrize("id,found", 
                          [(1,True),
                           (2,True),
                           (6,False)])
-def test_read_by_id(controller,id, found):
+def test_controller_read_by_id(controller,id, found):
     controller.create(ProductSaveDTO(
         product_category="Furniture",
         product_name=f"Oven"
@@ -183,7 +183,7 @@ def test_read_by_id(controller,id, found):
                           (2,{"product_name":"Ball"},None),
                           (3,{"product_name":"Ball","product_category":"Sports"},None)
                           ])
-def test_update_by_id(controller, id, partial_data, expected_name_category):
+def test_controller_update_by_id(controller, id, partial_data, expected_name_category):
     controller.create(ProductSaveDTO(
         product_category="Food",
         product_name=f"Apple"

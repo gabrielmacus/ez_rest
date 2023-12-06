@@ -15,7 +15,8 @@ class BaseModel(DeclarativeBase):
     #    return {field.name:getattr(self, field.name) for field in self.__table__.c}
 
 class BaseDTO(PydanticModel):
-    id:int
-    created_at:Optional[datetime]
-    deleted_at:Optional[datetime]
-    updated_at:Optional[datetime]
+    id:Optional[int]= None
+    created_at:Optional[datetime] = None
+    deleted_at:Optional[datetime] = None
+    updated_at:Optional[datetime] = None
+
