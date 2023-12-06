@@ -103,7 +103,7 @@ class ProductsController(BaseController[Product]):
     def read(self, 
              query: List = [], 
              page: int = 1, 
-             limit: int = None):
+             limit: int = 20):
         return super().read(ProductReadDTO, query, page, limit)
     
     def read_by_id(self, id: int) :
@@ -205,3 +205,26 @@ def test_controller_update_by_id(controller, id, partial_data, expected_name_cat
             )
     
         assert ex.value.status_code == status.HTTP_404_NOT_FOUND
+
+def test_controller_delete_by_id(controller):
+    controller.create(ProductSaveDTO(
+        id = 1,
+        product_category="Food",
+        product_name=f"Apple"
+    ))
+    controller.create(ProductSaveDTO(
+        id = 2,
+        product_category="Food",
+        product_name=f"Carrot"
+    ))
+    controller.create(ProductSaveDTO(
+        id = 3,
+        product_category="Food",
+        product_name=f"Pineapple"
+    ))
+    
+    controller.delete_by_id(2)
+    result = controller.read()
+    
+    assert len(result.items) == 2
+    assert [i.id for i in result.items] == [1,3]

@@ -39,7 +39,7 @@ class BaseController(ABC, Generic[TModel]):
             type_out:Type[TDtoOut],
             query:List = [],
             page:int = 1, 
-            limit:int = None,
+            limit:int = 20,
     ) -> PaginationDTO[TDtoOut]:
         
         count = self._repository.count(query)
@@ -86,5 +86,7 @@ class BaseController(ABC, Generic[TModel]):
         )
         
         self._repository.updateById(partial_data, id)
-        
+
+    def delete_by_id(self, id:int):
+        self._repository.deleteById(id)
         
