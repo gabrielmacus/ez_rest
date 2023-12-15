@@ -1,5 +1,6 @@
 import pytest
 from ez_rest.modules.query.services import QueryServices
+from ez_rest.modules.query.exceptions import InvalidOperatorException
 from tests.mock_db_services import MockDbServices
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy import BigInteger,String, Integer
@@ -17,16 +18,44 @@ def engine():
     engine = db_services.get_engine()
     return engine
 
-
-def test_parse_query():
+@pytest.mark.parametrize("query, expected_query", [
+    (
+        f"name lk '%John%' and ((age ge 18 or surname eq 'Doe') or (age lt 18 or surname eq 'Foobar'))",
+        "name LIKE '%John%' AND (age >= 18 OR surname = 'Doe' OR age < 18 OR surname = 'Foobar')"
+     ),
+     (
+        f"name lk '%John%' and ((age ge 18 and surname eq 'Doe') or (age lt 18 and surname eq 'Foobar'))",
+        "name LIKE '%John%' AND (age >= 18 AND surname = 'Doe' OR age < 18 AND surname = 'Foobar')"
+     ),
+     (
+        f"name lk '%John%' and (age ge 18 or address ilk '%Alton Road%' and surname eq 'Bar') and (age ge 18 or address ilk '%Leland Road%' and surname eq 'Bar')",
+        "name LIKE '%John%' AND (age >= 18 OR lower(address) LIKE lower('%Alton Road%') AND surname = 'Bar') AND (age >= 18 OR lower(address) LIKE lower('%Leland Road%') AND surname = 'Bar')"
+     ),
+     (
+        f"name eq 'John' and surname eq 'Doe'",
+        "name = 'John' AND surname = 'Doe'"
+     ),
+     (
+        f"name eq 'John'",
+        "name = 'John'"
+     ),
+     (
+         f"name eq middlename or YEAR(birthdate) ge 1996",
+         "name = middlename or YEAR(birthdate) >= 1996"
+     )
+])
+def test_translate_query(engine, query, expected_query):
     services = QueryServices()
     #query = services.parse_query("(age ge 18 and role eq 'Admin') or (age lt 18 and role ne 'Admin')")
-    query = services.parse_query("name eq 'John' or surname eq 'Doe' and (name eq 'A' or (name eq 'B' or name eq 'Z')) or name eq 'Jane' and surname eq 'Doe' and (name eq 'Foo' or name eq 'Bar')")
-    print(query)
-    
-    assert 0 == 1
+    translated_query = services.translate_query(query)
+    compiled_query = translated_query.compile(
+        engine, 
+        compile_kwargs={"literal_binds": True})
+    print(compiled_query)
+    assert str(compiled_query) == expected_query
 
 @pytest.mark.parametrize("operation, expected_query", [
+    ("age not_existant 18",None),
     ("age ge 18", "age >= 18"),
     ("age le 18", "age <= 18"),
     ("age gt 18", "age > 18"),
@@ -60,14 +89,18 @@ def test_parse_query():
     ("name nilk 'André Luís\%'", "lower(name) NOT LIKE lower('André Luís\%')"),
 
 ])
-def test_parse_operation(engine, operation, expected_query):
+def test_translate_operation(engine, operation, expected_query):
     services = QueryServices()
-    parsed_operation = services.parse_operation(operation)
+    
+    if expected_query is None:
+        with pytest.raises(InvalidOperatorException):
+            services.translate_operation(operation)
+        return
+
+    parsed_operation = services.translate_operation(operation)
     compiled_query = parsed_operation \
         .compile(engine, compile_kwargs={"literal_binds": True})
     
-    print(compiled_query, expected_query)
-
     assert str(compiled_query) == expected_query
 
 @pytest.mark.parametrize("query, expected_members", [
@@ -83,11 +116,18 @@ def test_parse_operation(engine, operation, expected_query):
 def test_get_members(query, expected_members):
      services = QueryServices()
      members = services.get_members(query)
-     print(members)
+     
      assert members == expected_members
 
 @pytest.mark.parametrize("query, expected_queries", [
-
+    (
+        "(age ge 18 or role eq 'Admin') and (age lt 18 or role ne 'Admin')",
+        {
+            0:"age ge 18 or role eq 'Admin'",
+            1:"age lt 18 or role ne 'Admin'",
+            2:"{0} and {1}"
+        }
+    ),
     (
         "(age ge 18 and role eq 'Admin') or (age lt 18 and role ne 'Admin')",
         {
@@ -120,11 +160,21 @@ def test_get_members(query, expected_members):
             2:"name eq 'A' or {0}",
             3:"name eq 'André Luís' or surname eq 'Doe' and {2} or name eq 'Jane' and surname eq 'Doe' and {1}"
         }
+    ),
+    (
+        "(YEAR(birthdate) > 1996 and surname eq 'Doe') or (YEAR(driving_license_date) - YEAR(birthdate) > 5 and surname lk '%bar')",
+        {
+            0:"YEAR(birthdate) > 1996 and surname eq 'Doe'",
+            1:"YEAR(driving_license_date) - YEAR(birthdate) > 5 and surname lk '%bar'",
+            2:"{0} or {1}"
+        }
     )
 ])
 def test_get_queries(query, expected_queries):
     services = QueryServices()
     queries = services.get_queries(query)
+
+    print(queries)
     
     assert queries == expected_queries
 
