@@ -19,7 +19,8 @@ setup(
         "fastapi>=^0.104.1",
         "passlib>=^1.7.4",
         "python-jose>=^3.3.0",
-        "sqlalchemy>=^2.0.23"
+        "sqlalchemy>=^2.0.23",
+        "regex>=^2023.10.3"
     ],
     extras_require={
         "dev": ["pytest==7.4.3", 

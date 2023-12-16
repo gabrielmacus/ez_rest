@@ -3,7 +3,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import column, ColumnElement
 from typing import TypeVar, List, Type, Callable
 from .exceptions import InvalidOperatorException,InvalidOperationException
-import re
+import regex as re
 import operator
 from .models import Operator
 
@@ -15,10 +15,10 @@ QueryValueList = List[QueryValue]
 
 class QueryServices:
     def get_members(self, 
-                    query:str) -> List[List[str]]:
-        """Gets query members. Example:
+                    group:str) -> List[List[str]]:
+        """Gets members of a group of operations. Example:
         .. code-block:: python
-            query = "age ge 18 and role eq 'Admin' or name eq 'John' and surname eq 'Doe'"
+            group = "age ge 18 and role eq 'Admin' or name eq 'John' and surname eq 'Doe'"
             
             result = [
                 ["age ge 18", "role eq 'Admin'"],
@@ -26,23 +26,29 @@ class QueryServices:
             ]
 
         Args:
-            query (str): Query to get members from
+            group (str): Group to get members from
 
         Returns:
             List[List[str]]: Array of members
         """
         
-        members = query.split(" or ")
+        members = group.split(" or ")
         for index, member in enumerate(members):
             members[index] =  member.split(" and ")
         
         return members
+    
+    def get_functions(self,
+                    query:str):
+        pattern = r"([a-zA-Z]+)\(([0-9a-zA-Z' ,]+)\)"
+        matches = re.finditer(pattern, query)
+        for match in matches:
+            print(match.group())
 
-    def get_queries(self, 
+    def get_groups(self, 
                     query:str, 
-                    queries:dict[int,str] = None) -> dict[int,str]:
-        """Gets main query and subqueries (queries between parentheses) 
-        with references.
+                    groups:dict[int,str] = None) -> dict[int,str]:
+        """Gets groups of operations
 
         Example: 
         .. code-block:: python
@@ -54,52 +60,49 @@ class QueryServices:
                 }
         Args:
             query (str): Main query
-            queries (dict[str,str], optional): Accumulated queries. Defaults to None.
+            groups (dict[str,str], optional): Accumulated groups. Defaults to None.
 
         Returns:
-            dict[str,str]: Dict with main query and subqueries with references
+            dict[str,str]: Dict of groups
         """
-        if queries is None:
-            queries = {}
+        if groups is None:
+            groups = {}
 
         pattern = r'\(([^()]+)\)'
         matches = re.finditer(pattern, query)
 
-        query_arr = list(query)
-        # The length of the query changes as members are replaced
-        # by references ({number}, so an offset is declared
-        # to make further replacements
-        offset = 0
-        index = len(queries.keys())
+        new_query = query
+        index = len(groups.keys())
         for match in matches:
-            start = match.span()[0] - offset
-            end = match.span()[1] - offset
+            match_start = match.span()[0]
+            # Checks if prev char of match is next to parentheses
+            # to determine if corresponds to a function
+            if match_start == 0 or \
+               re.match(r'[A-Z]',query[match_start - 1]) is None:
+                key = '{'+str(index)+'}'
+                new_query = new_query.replace(match.group(0),key, 1)
+                groups[index] = match.group(1)
+                index += 1
+            else:
+                new_query = new_query.replace(match.group(0),f'{{{match.group(1)}}}', 1)
 
-            key = '{'+str(index)+'}'
-            query_arr[start:end] = key
-            offset = len(match.group()) - len(key)
-            queries[index] = match.group(1)
-            index += 1
-
-        new_query = "".join(query_arr)
-        
         if(new_query != query):
-            return self.get_queries(new_query, queries)
+            return self.get_groups(new_query, groups)
         
         # If last member has only a member reference, it means that
         # the original query was between parentheses.
         # In that case, this member is ignored.
         if re.match(r'^{[0-9]{1,}}$', new_query) is None:
-            queries[index] = new_query
+            groups[index] = new_query
 
-        return queries
+        return groups
          
     def get_operation(self,
                         operation:str,
-                        translated_subqueries:dict[int, ColumnElement[bool]]) -> ColumnElement[bool]:
+                        translated_groups:dict[int, ColumnElement[bool]]) -> ColumnElement[bool]:
         """Translates operation to SqlAlchemy operation or,
         if a reference ({number}) is present, it's replaced
-        by the referenced query.
+        by the referenced group of operations.
 
         Example:
         .. code-block:: python
@@ -108,8 +111,8 @@ class QueryServices:
 
         Args:
             operation (str): Operation string or subquery reference
-            translated_subqueries (dict[int, ColumnElement[bool]]): Already
-            translated subqueries to replace references
+            translated_groups (dict[int, ColumnElement[bool]]): Already
+            translated groups to replace references
 
         Returns:
             ColumnElement[bool]: SqlAlchemy query
@@ -119,31 +122,31 @@ class QueryServices:
             return self.translate_operation(operation)
         else:
             reference = int(reference_match.group(1))
-            return translated_subqueries[reference]
+            return translated_groups[reference]
     
-    def translate_subquery( self,
-                        subquery:str,
-                        translated_subqueries:dict[int, str]) -> ColumnElement[bool]:
-        """Translates subquery string (query between parentheses)
+    def translate_group( self,
+                        group:str,
+                        translated_groups:dict[int, str]) -> ColumnElement[bool]:
+        """Translates group of operations
         to SqlAlchemy query.
         
         Args:
-            subquery (str): Subquery to be translated
-            translated_subqueries (dict[int, str]): Dictionary
-            with already translated subqueries, so references
+            group (str): Group of operations to be translated
+            translated_groups (dict[int, str]): Dictionary
+            with already translated groups, so references
             can be repaced ({number})
 
         Returns:
             ColumnElement[bool]: SqlAlchemy query
         """
         parsed_members:List[ColumnElement[bool]] = []
-        members = self.get_members(subquery)
+        members = self.get_members(group)
         for member in members:
             
             parsed_operations:List[ColumnElement[bool]] = []
             for op in member:
                 parsed_operations.append(
-                    self.get_operation(op, translated_subqueries)
+                    self.get_operation(op, translated_groups)
                 )
             parsed_members.append(and_(*parsed_operations))
         return or_(*parsed_members)
@@ -151,7 +154,7 @@ class QueryServices:
     def translate_query(
             self,
             query:str) -> ColumnElement[bool]:
-        """Translates complete query string into SqlAlchemy query
+        """Translates query string into SqlAlchemy query
 
         Args:
             query (str): Query to be translated
@@ -159,15 +162,15 @@ class QueryServices:
         Returns:
             ColumnElement[bool]: SqlAlchemy query
         """
-        queries = self.get_queries(query)
-        translated_subqueries = {}
+        groups = self.get_groups(query)
+        translated_groups = {}
 
-        for query_reference in queries:
-            subquery = queries[query_reference]
-            translated_subqueries[query_reference] = self.translate_subquery(
-                subquery, 
-                translated_subqueries)
-        return and_(translated_subqueries[query_reference])
+        for group_reference in groups:
+            group = groups[group_reference]
+            translated_groups[group_reference] = self.translate_group(
+                group, 
+                translated_groups)
+        return and_(translated_groups[group_reference])
 
     def translate_operation(self, 
                         operation: str) -> ColumnElement[bool]:

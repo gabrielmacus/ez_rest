@@ -119,7 +119,7 @@ def test_get_members(query, expected_members):
      
      assert members == expected_members
 
-@pytest.mark.parametrize("query, expected_queries", [
+@pytest.mark.parametrize("query, expected_groups", [
     (
         "(age ge 18 or role eq 'Admin') and (age lt 18 or role ne 'Admin')",
         {
@@ -129,12 +129,12 @@ def test_get_members(query, expected_members):
         }
     ),
     (
-        "(age ge 18 and role eq 'Admin') or (age lt 18 and role ne 'Admin')",
-        {
-            0:"age ge 18 and role eq 'Admin'",
-            1:"age lt 18 and role ne 'Admin'",
-            2:"{0} or {1}"
-        }
+    "(age ge 18 and role eq 'Admin') or (age lt 18 and role ne 'Admin')",
+    {
+        0:"age ge 18 and role eq 'Admin'",
+        1:"age lt 18 and role ne 'Admin'",
+        2:"{0} or {1}"
+    }
     ),
     (
         "(age ge 18 and role eq 'Admin') or age lt 18",
@@ -164,17 +164,25 @@ def test_get_members(query, expected_members):
     (
         "(YEAR(birthdate) > 1996 and surname eq 'Doe') or (YEAR(driving_license_date) - YEAR(birthdate) > 5 and surname lk '%bar')",
         {
-            0:"YEAR(birthdate) > 1996 and surname eq 'Doe'",
-            1:"YEAR(driving_license_date) - YEAR(birthdate) > 5 and surname lk '%bar'",
+            0:"YEAR{birthdate} > 1996 and surname eq 'Doe'",
+            1:"YEAR{driving_license_date} - YEAR{birthdate} > 5 and surname lk '%bar'",
+            2:"{0} or {1}"
+        }
+    ),
+    (
+        "(YEAR(birthdate) > 1996 and surname eq 'Doe') or (SUBTRACT(YEAR(driving_license_date), YEAR(birthdate)) > 5 and surname lk '%bar')",
+        {
+            0:"YEAR{birthdate} > 1996 and surname eq 'Doe'",
+            1:"SUBTRACT{YEAR{driving_license_date}, YEAR{birthdate}} > 5 and surname lk '%bar'",
             2:"{0} or {1}"
         }
     )
+   
 ])
-def test_get_queries(query, expected_queries):
+def test_get_groups(query, expected_groups):
     services = QueryServices()
-    queries = services.get_queries(query)
+    groups = services.get_groups(query)
 
-    print(queries)
+    print(groups)
     
-    assert queries == expected_queries
-
+    assert groups == expected_groups
