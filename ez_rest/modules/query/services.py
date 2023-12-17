@@ -1,12 +1,11 @@
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import column, ColumnElement
+from sqlalchemy import column, ColumnElement, func
 from typing import TypeVar, List, Type, Callable
 from .exceptions import InvalidOperatorException,InvalidOperationException
 import regex as re
 import operator
-from .models import Operator
-
+from .models import Operator, Functions
 
 TModel = TypeVar("TModel", bound=DeclarativeBase)
 
@@ -141,6 +140,7 @@ class QueryServices:
         """
         parsed_members:List[ColumnElement[bool]] = []
         members = self.get_members(group)
+
         for member in members:
             
             parsed_operations:List[ColumnElement[bool]] = []
@@ -194,26 +194,56 @@ class QueryServices:
         """
         operation_pattern = r'^([^ ]+) ([^ ]+) (.*)$'
         matches = re.findall(operation_pattern, operation)
-
+        
         if len(matches) == 0:
             raise InvalidOperationException(f"Operation: '{operation}'")
 
-        attr:str = matches[0][0]
+        value1:str = matches[0][0]
         op:str = matches[0][1]
-        value:str = str(matches[0][2])
-        parsed_value = self.parse_value(value)
+        value2:str = str(matches[0][2])
+        parsed_value1 = self.parse_value(value1)
+        parsed_value2 = self.parse_value(value2)
 
         try:
             return self.parse_operation(
-                attribute=attr,
                 operator=Operator[op.upper()],
-                value=parsed_value
+                value1=parsed_value1,
+                value2=parsed_value2
             )
         except KeyError:
             raise InvalidOperatorException(f"Invalid operator: {op}")
+    
+    def translate_function(self,
+                            fn_name:str,
+                            args:str):
+            
+        fn_args_matches = re.finditer(r'{(?:[^{}]+|(?R))*+}', args)
+        fn_args_replacements = []
+        for match in fn_args_matches:
+            fn_args = match.group()
+            args = args.replace(fn_args, f"[args_{len(fn_args_replacements)}]",1)
+            fn_args_replacements.append(fn_args)
+            
+        split_args = [arg for arg in args.split(',')]
+        for index, replacement in enumerate(fn_args_replacements):
+            for index2, arg in enumerate(split_args):
+                split_args[index2] = arg.replace(f"[args_{index}]",replacement,1)
+        
+        parsed_args = [self.parse_value(a) for a in split_args]
+
+        fns = {
+            Functions.EXTRACT:lambda : func.extract(*parsed_args),
+            Functions.SUM:lambda : parsed_args[0] + parsed_args[1],
+            Functions.SUB:lambda : parsed_args[0] - parsed_args[1],
+            Functions.DIV:lambda : parsed_args[0] / parsed_args[1],
+            Functions.MUL:lambda : parsed_args[0] * parsed_args[1]
+        }
+
+        return fns[Functions[fn_name.upper()]]()
 
     def parse_value(self, 
                     value:str) -> QueryValue | QueryValueList:
+                    
         """Parses value to be used in query.
 
         Example:
@@ -233,6 +263,10 @@ class QueryServices:
             QueryValue | QueryValueList: Parsed value
         """
         value = value.strip()
+
+        fn_pattern = r'([a-zA-Z0-9_]+){(.*)}'
+        column_pattern = r'^[0-9]+$'
+        
         if value.startswith("'") and value.endswith("'"):
             parsed_value = value \
                 .removeprefix("'") \
@@ -243,18 +277,25 @@ class QueryServices:
                 .removesuffix("]") \
                 .split(",")
             parsed_value = [self.parse_value(v) for v in parsed_value]
-        elif re.match(r'^[0-9]+$', value) == None:
+        elif re.match(fn_pattern, value) is not None: # Parses function
+            fn_match = re.match(fn_pattern, value)
+            parsed_value = self.translate_function(
+                fn_match.group(1),
+                fn_match.group(2)
+            )
+        elif re.match(column_pattern, value) is None:
             parsed_value = column(value)
         elif '.' in value:
             parsed_value = float(value)
         else:
             parsed_value = int(value)
         return parsed_value
-             
+
+        #print(fn_match.group(2))
     def parse_operation(self, 
                         operator:Operator,
-                        attribute:str,
-                        value:any) -> ColumnElement[bool]:
+                        value1:any,
+                        value2:any) -> ColumnElement[bool]:
         """
         Transform an attribute, operator and value
         into an SqlAlchemy operation to be used
@@ -262,29 +303,28 @@ class QueryServices:
 
         Args:
             operator (Operator): Comparison operator
-            attribute (str): Attribute from model
-            value (any): Comparison value
+            value1 (any): Comparison value
+            value2 (any): Comparison value
 
         Returns:
             ColumnElement[bool]: Element to be used in SqlAlchemy query
         """
-
         ops:dict[str, 
                     Callable[[str,any], 
                     ColumnElement[bool]]] = {
-            Operator.GT: lambda attr,value: column(attr) > value,
-            Operator.LT: lambda attr,value: column(attr) < value,
-            Operator.GE: lambda attr,value: column(attr) >= value,
-            Operator.LE: lambda attr,value: column(attr) <= value,
-            Operator.EQ: lambda attr,value: column(attr) == value,
-            Operator.NE: lambda attr,value: column(attr) != value,
-            Operator.IN: lambda attr,value: column(attr).in_(value),
-            Operator.NIN: lambda attr,value: column(attr).not_in(value),
-            Operator.LK: lambda attr,value: column(attr).like(value),
-            Operator.ILK: lambda attr,value: column(attr).ilike(value),
-            Operator.NLK: lambda attr,value: column(attr).not_like(value),
-            Operator.NILK: lambda attr,value: column(attr).not_ilike(value)
+            Operator.GT: lambda: value1 > value2,
+            Operator.LT: lambda : value1 < value2,
+            Operator.GE: lambda : value1 >= value2,
+            Operator.LE: lambda : value1 <= value2,
+            Operator.EQ: lambda : value1 == value2,
+            Operator.NE: lambda : value1 != value2,
+            Operator.IN: lambda : value1.in_(value2),
+            Operator.NIN: lambda : value1.not_in(value2),
+            Operator.LK: lambda : value1.like(value2),
+            Operator.ILK: lambda : value1.ilike(value2),
+            Operator.NLK: lambda : value1.not_like(value2),
+            Operator.NILK: lambda : value1.not_ilike(value2)
         }
 
-        return ops[operator](attribute,value)
+        return ops[operator]()
     

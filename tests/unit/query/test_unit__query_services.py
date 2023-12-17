@@ -22,27 +22,39 @@ def engine():
     (
         f"name lk '%John%' and ((age ge 18 or surname eq 'Doe') or (age lt 18 or surname eq 'Foobar'))",
         "name LIKE '%John%' AND (age >= 18 OR surname = 'Doe' OR age < 18 OR surname = 'Foobar')"
-     ),
-     (
+    ),
+    (
         f"name lk '%John%' and ((age ge 18 and surname eq 'Doe') or (age lt 18 and surname eq 'Foobar'))",
         "name LIKE '%John%' AND (age >= 18 AND surname = 'Doe' OR age < 18 AND surname = 'Foobar')"
-     ),
-     (
+    ),
+    (
         f"name lk '%John%' and (age ge 18 or address ilk '%Alton Road%' and surname eq 'Bar') and (age ge 18 or address ilk '%Leland Road%' and surname eq 'Bar')",
         "name LIKE '%John%' AND (age >= 18 OR lower(address) LIKE lower('%Alton Road%') AND surname = 'Bar') AND (age >= 18 OR lower(address) LIKE lower('%Leland Road%') AND surname = 'Bar')"
-     ),
-     (
+    ),
+    (
         f"name eq 'John' and surname eq 'Doe'",
         "name = 'John' AND surname = 'Doe'"
-     ),
-     (
+    ),
+    (
         f"name eq 'John'",
         "name = 'John'"
-     ),
-     (
-         f"name eq middlename or YEAR(birthdate) ge 1996",
-         "name = middlename or YEAR(birthdate) >= 1996"
-     )
+    ),
+    (
+        f"name eq middlename or birthdate ge '1996-01-01'",
+        "name = middlename OR birthdate >= '1996-01-01'"
+    ),
+    (
+        f"name eq middlename or EXTRACT('year',birthdate) ge 1996",
+        "name = middlename OR CAST(STRFTIME('%Y', birthdate) AS INTEGER) >= 1996"
+    ),
+    (
+        "SUB(2023,EXTRACT('year',birthdate)) ge 50",
+        "2023 - CAST(STRFTIME('%Y', birthdate) AS INTEGER) >= 50"
+    ),
+    (
+        "MUL(SUB(2023,EXTRACT('year',birthdate)),2) ge 50",
+        "(2023 - CAST(STRFTIME('%Y', birthdate) AS INTEGER)) * 2 >= 50"
+    )
 ])
 def test_translate_query(engine, query, expected_query):
     services = QueryServices()
@@ -111,11 +123,16 @@ def test_translate_operation(engine, operation, expected_query):
     (
         "age ge 18 and role eq 'Admin' or name eq 'John' and surname eq 'Doe'",
         [["age ge 18", "role eq 'Admin'"],["name eq 'John'","surname eq 'Doe'"]]
+    ),
+    (
+        "name eq middlename or YEAR{birthdate} ge 1996",
+        [["name eq middlename"],["YEAR{birthdate} ge 1996"]]
     )
 ])
 def test_get_members(query, expected_members):
      services = QueryServices()
      members = services.get_members(query)
+     print(members)
      
      assert members == expected_members
 
@@ -162,22 +179,27 @@ def test_get_members(query, expected_members):
         }
     ),
     (
-        "(YEAR(birthdate) > 1996 and surname eq 'Doe') or (YEAR(driving_license_date) - YEAR(birthdate) > 5 and surname lk '%bar')",
+        "(EXTRACT('year', birthdate) > 1996 and surname eq 'Doe') or (EXTRACT('year', driving_license_date) - EXTRACT('year', birthdate) > 5 and surname lk '%bar')",
         {
-            0:"YEAR{birthdate} > 1996 and surname eq 'Doe'",
-            1:"YEAR{driving_license_date} - YEAR{birthdate} > 5 and surname lk '%bar'",
+            0:"EXTRACT{'year', birthdate} > 1996 and surname eq 'Doe'",
+            1:"EXTRACT{'year', driving_license_date} - EXTRACT{'year', birthdate} > 5 and surname lk '%bar'",
             2:"{0} or {1}"
         }
     ),
     (
-        "(YEAR(birthdate) > 1996 and surname eq 'Doe') or (SUBTRACT(YEAR(driving_license_date), YEAR(birthdate)) > 5 and surname lk '%bar')",
+        "(EXTRACT('year', birthdate) > 1996 and surname eq 'Doe') or (SUBTRACT(EXTRACT('year', driving_license_date), EXTRACT('year', birthdate)) > 5 and surname lk '%bar')",
         {
-            0:"YEAR{birthdate} > 1996 and surname eq 'Doe'",
-            1:"SUBTRACT{YEAR{driving_license_date}, YEAR{birthdate}} > 5 and surname lk '%bar'",
+            0:"EXTRACT{'year', birthdate} > 1996 and surname eq 'Doe'",
+            1:"SUBTRACT{EXTRACT{'year', driving_license_date}, EXTRACT{'year', birthdate}} > 5 and surname lk '%bar'",
             2:"{0} or {1}"
         }
+    ),
+    (
+        "name eq middlename or EXTRACT('year', birthdate) ge 1996",
+        {
+            0:"name eq middlename or EXTRACT{'year', birthdate} ge 1996"
+        }
     )
-   
 ])
 def test_get_groups(query, expected_groups):
     services = QueryServices()

@@ -2,6 +2,15 @@ from pydantic import BaseModel
 from enum import Enum
 from typing import List
 
+class Functions(Enum):
+    EXTRACT = 0
+    SUM = 1
+    SUB = 2
+    DIV = 3
+    MUL = 4
+
+
+
 class Operator(Enum):
     GT = 0
     LT = 1
