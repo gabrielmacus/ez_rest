@@ -1,6 +1,8 @@
-from pydantic import BaseModel
+
 from enum import Enum
-from typing import List
+from typing import List, Optional
+from sqlalchemy import ColumnElement
+from dataclasses import dataclass
 
 class Functions(Enum):
     EXTRACT = 0
@@ -8,8 +10,6 @@ class Functions(Enum):
     SUB = 2
     DIV = 3
     MUL = 4
-
-
 
 class Operator(Enum):
     GT = 0
@@ -25,9 +25,8 @@ class Operator(Enum):
     NLK = 10
     NILK = 11
 
-'''
-class Operation(BaseModel):
-    attribute:str
-    operator:Operator
-    value:str | int | float | List[str] | List[int] | List[float]
-'''
+@dataclass
+class Query():
+    filter:Optional[ColumnElement[bool]]
+    page:str
+    limit:str

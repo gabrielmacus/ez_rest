@@ -5,7 +5,7 @@ from typing import TypeVar, List, Type, Callable
 from .exceptions import InvalidOperatorException,InvalidOperationException
 import regex as re
 import operator
-from .models import Operator, Functions
+from .models import Operator, Functions, Query
 
 TModel = TypeVar("TModel", bound=DeclarativeBase)
 
@@ -216,7 +216,7 @@ class QueryServices:
     def translate_function(self,
                             fn_name:str,
                             args:str):
-            
+
         fn_args_matches = re.finditer(r'{(?:[^{}]+|(?R))*+}', args)
         fn_args_replacements = []
         for match in fn_args_matches:
@@ -291,7 +291,6 @@ class QueryServices:
             parsed_value = int(value)
         return parsed_value
 
-        #print(fn_match.group(2))
     def parse_operation(self, 
                         operator:Operator,
                         value1:any,
@@ -328,3 +327,17 @@ class QueryServices:
 
         return ops[operator]()
     
+    def handle_query(self, 
+                        page:int,
+                        limit:int,
+                        filter:str = None,) -> Query:
+        filter_query = None
+        if filter is not None:
+            filter_query = self.translate_query(filter)
+            
+        return Query(
+            filter=filter_query,
+            limit=limit,
+            page=page
+        )
+        

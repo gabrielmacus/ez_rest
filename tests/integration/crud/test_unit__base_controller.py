@@ -10,6 +10,8 @@ from sqlalchemy.orm import mapped_column, Mapped
 import pytest
 from ez_rest.modules.pagination.services import PaginationServices
 from fastapi import HTTPException, status
+from ez_rest.modules.query.services import QueryServices
+from ez_rest.modules.query.models import Query
 
 from sqlalchemy.orm import relationship
 from sqlalchemy import BigInteger
@@ -17,6 +19,9 @@ from sqlalchemy import Table, Column, MetaData, Integer,Text, String, DateTime, 
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pydantic import ValidationError
+
+from fastapi import Depends
+from typing import Annotated
 
 meta = MetaData()
 roles = Table(
@@ -83,6 +88,7 @@ mapper_services.register(
         "name_category":f'{src.name} {src.category}' if src.category is not None else src.name
     }
 )
+query_services = QueryServices()
 
 class ProductsRepository(BaseRepository[Product]):
     def __init__(self, 
@@ -100,11 +106,9 @@ class ProductsController(BaseController[Product]):
                item: ProductSaveDTO):
         return super().create(item, Product, ProductReadDTO)
     
-    def read(self, 
-             query: List = [], 
-             page: int = 1, 
-             limit: int = 20):
-        return super().read(ProductReadDTO, query, page, limit)
+    def read(self,
+        query: Annotated[Query, Depends(query_services.handle_query)]):
+        return super().read(ProductReadDTO, query)
     
     def read_by_id(self, id: int) :
         return super().read_by_id(id, ProductReadDTO)
@@ -135,8 +139,11 @@ def test_controller_read(controller, limit, page, expected_pages, expected_items
             product_category="Furniture",
             product_name=f"Oven {i}"
         ))
-    
-    result = controller.read(limit=limit, page=page)
+    result = controller.read(Query(
+        filter=None,
+        limit=limit,
+        page=page
+    ))
 
     assert len(result.items) == expected_items and\
         result.count == 5 and \
@@ -206,7 +213,7 @@ def test_controller_update_by_id(controller, id, partial_data, expected_name_cat
     
         assert ex.value.status_code == status.HTTP_404_NOT_FOUND
 
-def test_controller_delete_by_id(controller):
+def test_controller_delete_by_id(controller:ProductsController):
     controller.create(ProductSaveDTO(
         id = 1,
         product_category="Food",
@@ -224,7 +231,11 @@ def test_controller_delete_by_id(controller):
     ))
     
     controller.delete_by_id(2)
-    result = controller.read()
+    result = controller.read(Query(
+        filter=None,
+        limit=20,
+        page=1
+    ))
     
     assert len(result.items) == 2
     assert [i.id for i in result.items] == [1,3]

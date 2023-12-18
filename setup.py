@@ -26,7 +26,8 @@ setup(
         "dev": ["pytest==7.4.3", 
                 "twine==4.0.2", 
                 "time-machine==2.13.0",
-                "pytest-cov==4.1.0"],
+                "pytest-cov==4.1.0",
+                "httpx==0.25.2"],
     },
     python_requires=">=3.10",
     classifiers=[

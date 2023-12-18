@@ -3,9 +3,14 @@ from ..pagination.services import PaginationServices
 from ..pagination.models import PaginationDTO
 from .models import BaseModel, BaseDTO
 from typing import TypeVar,Generic,List, Type
-from ez_rest.modules.mapper.services import mapper_services as mapper, MapperServices
+from ..mapper.services import mapper_services as mapper, MapperServices
 from abc import ABC, abstractmethod
 from fastapi import HTTPException, status
+from ..query.services import QueryServices
+from ..query.models import Query
+
+
+query_services = QueryServices()
 
 TModel = TypeVar("TModel", bound=BaseModel)
 TDtoIn = TypeVar("TDtoIn", bound=BaseDTO)
@@ -37,26 +42,24 @@ class BaseController(ABC, Generic[TModel]):
     def read(
             self,
             type_out:Type[TDtoOut],
-            query:List = [],
-            page:int = 1, 
-            limit:int = 20,
+            query:Query
     ) -> PaginationDTO[TDtoOut]:
         
-        count = self._repository.count(query)
-        offset = self._pagination_services.get_offset(page, limit)
+        count = self._repository.count(query.filter)
+        offset = self._pagination_services.get_offset(query.page, query.limit)
         items = self._repository.read(
-            query,
-            limit,
+            query.filter,
+            query.limit,
             offset)
         pages_count = self._pagination_services.get_pages_count(
             count, 
-            limit)
+            query.limit)
         
         items = [self._mapper_services.map(item, type_out) for item in items]
 
         return PaginationDTO(
             count=count,
-            page=page, 
+            page=query.page, 
             pages_count=pages_count, 
             items=items
         )

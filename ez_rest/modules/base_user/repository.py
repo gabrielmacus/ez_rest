@@ -24,7 +24,6 @@ class BaseUserRepository(Generic[T], BaseRepository[T]):
         return super().create(item)
 
     def read_by_identity_field(self, identity_field_value:str):
-
         filters = \
             [or_(
                 *[getattr(self._model,field) == identity_field_value 
