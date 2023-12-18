@@ -4,3 +4,6 @@ class InvalidOperatorException(Exception):
 
 class InvalidOperationException(Exception):
     pass
+
+class InvalidOrderByClause(Exception):
+    pass

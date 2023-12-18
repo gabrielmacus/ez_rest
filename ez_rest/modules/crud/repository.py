@@ -1,5 +1,5 @@
 from typing import List, TypeVar, Generic, Type
-from sqlalchemy import func, select, ColumnElement, and_
+from sqlalchemy import func, select, ColumnElement, and_, UnaryExpression
 from sqlalchemy.orm import Session
 from ..db.services import DbServices
 from .models import BaseModel
@@ -30,6 +30,7 @@ class BaseRepository(ABC, Generic[T]):
             filter:ColumnElement[bool] = None,
             limit:int = None, 
             offset:int = None,
+            order_by:List[UnaryExpression] = None,
             include_deleted:bool = False
             ) -> List[T]:
             
@@ -46,6 +47,10 @@ class BaseRepository(ABC, Generic[T]):
             statement = statement \
                 .limit(limit) \
                 .offset(offset)
+            
+            if order_by is not None:
+                statement = statement \
+                    .order_by(*order_by)
 
             results = session.execute(statement)
             items = results.scalars().all()

@@ -177,19 +177,19 @@ def test_api_read(client, count, limit, page, pages_count):
     assert data["pages_count"] == pages_count
     assert len(data["items"]) == limit
 
-@pytest.mark.parametrize("filter, expected_ids",
+@pytest.mark.parametrize("filter, order_by, expected_ids",
                         [
-                        ("name eq 'Apple'", [1]),
-                        ("name eq 'Tomato'", [3]),
-                        ("name eq 'Durian'", []),
-                        ("category eq 'Vegetables'",[1,2,3,4]),
-                        ("(price ge 150 and (category eq 'Fruits' or category eq 'Dairy')) or (price ge 50 and category eq 'Vegetables')",[1,4,5]),
-                        ("DIV(price,10) le 3",[2,3]),
-                        ("SUB(DIV(price,10),1) lt 2",[2]),
-                        ("price gt 49.5",[1,4,5]),
-                        ("price gt MUL(50,2)",[5])
+                        ("name eq 'Apple'",'name asc', [1]),
+                        ("name eq 'Tomato'",'id asc', [3]),
+                        ("name eq 'Durian'",'', []),
+                        ("category eq 'Vegetables'",'category asc, name desc',[3,4,2,1]),
+                        ("(price ge 150 and (category eq 'Fruits' or category eq 'Dairy')) or (price ge 50 and category eq 'Vegetables')",'',[1,4,5]),
+                        ("DIV(price,10) le 3",'',[2,3]),
+                        ("SUB(DIV(price,10),1) lt 2",'',[2]),
+                        ("price gt 49.5",'',[1,4,5]),
+                        ("price gt MUL(50,2)",'',[5])
                         ])
-def test_api_read__filter(client, filter, expected_ids):
+def test_api_read__filter_order(client, filter, order_by, expected_ids):
     items = [
         {
             "name":f"Apple",
@@ -219,7 +219,7 @@ def test_api_read__filter(client, filter, expected_ids):
     ]
     for item in items:
         client.post('/products', json=item)
-    response = client.get(f'/products?limit=20&page=1&filter={filter}')
+    response = client.get(f'/products?limit=20&page=1&filter={filter}&order_by={order_by}')
 
     data = response.json()
     assert [i["id"] for i in data["items"]] == expected_ids

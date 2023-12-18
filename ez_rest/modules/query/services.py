@@ -1,8 +1,8 @@
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import column, ColumnElement, func
+from sqlalchemy import column, ColumnElement, func, UnaryExpression
 from typing import TypeVar, List, Type, Callable
-from .exceptions import InvalidOperatorException,InvalidOperationException
+from .exceptions import InvalidOperatorException,InvalidOperationException,InvalidOrderByClause
 import regex as re
 import operator
 from .models import Operator, Functions, Query
@@ -334,17 +334,42 @@ class QueryServices:
 
         return ops[operator]()
     
+    def translate_order_by(self,
+                           order_by:str) -> List[UnaryExpression]:
+        order_by = order_by.strip()
+        pattern = r'^([a-zA-Z0-9_]+) (desc|asc|DESC|ASC)$'
+        columns = order_by.split(',')
+        translated_columns:List[UnaryExpression] = []
+        for col in columns:
+            col = col.strip()
+            match = re.match(pattern, col)
+            if match is None:
+                raise InvalidOrderByClause(f"Invalid column: {col}")
+            if match.group(2).upper() == 'ASC':
+                translated_column = column(match.group(1)).asc()
+            else:
+                translated_column = column(match.group(1)).desc()
+            translated_columns.append(translated_column)
+            
+        return translated_columns    
+
     def handle_query(self, 
                         page:int,
                         limit:int,
-                        filter:str = None,) -> Query:
+                        filter:str = None,
+                        order_by:str = None) -> Query:
         filter_query = None
         if filter not in (None, ""):
             filter_query = self.translate_query(filter)
         
+        order_by_query = None
+        if order_by not in (None, ""):
+            order_by_query = self.translate_order_by(order_by)
+        
         return Query(
             filter=filter_query,
             limit=limit,
-            page=page
+            page=page,
+            order_by=order_by_query
         )
         

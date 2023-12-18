@@ -142,7 +142,8 @@ def test_controller_read(controller, limit, page, expected_pages, expected_items
     result = controller.read(Query(
         filter=None,
         limit=limit,
-        page=page
+        page=page,
+        order_by=None
     ))
 
     assert len(result.items) == expected_items and\
@@ -234,7 +235,8 @@ def test_controller_delete_by_id(controller:ProductsController):
     result = controller.read(Query(
         filter=None,
         limit=20,
-        page=1
+        page=1,
+        order_by=None
     ))
     
     assert len(result.items) == 2
