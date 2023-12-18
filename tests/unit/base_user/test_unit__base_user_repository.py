@@ -51,7 +51,7 @@ class UserModel(BaseUserModel):
     phone:Mapped[str] = mapped_column(String(100),use_existing_column=True)
 
 class UserRepository(BaseUserRepository[UserModel]):
-    _identity_fields = ['username', 'email']
+    #_identity_fields = ['username', 'email']
 
     def __init__(self, 
                  db_services: DbServices = None, 
@@ -79,7 +79,7 @@ def test_create(repository):
     user_results = repository.read()
     assert user_results[0].password == "654321"
 
-
+'''
 @pytest.mark.parametrize("value, expected_user_id", 
                          [("user",1),
                           ("user2",2),
@@ -111,3 +111,4 @@ def test_read_by_identity_fields(repository, value, expected_user_id):
         assert read_user.id == expected_user_id
     else:
         assert read_user is None
+'''

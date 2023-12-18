@@ -5,7 +5,7 @@ from ez_rest.modules.crud.repository import BaseRepository
 from datetime import datetime
 from ez_rest.modules.db.services import DbServices
 from tests.mock_db_services import MockDbServices
-from sqlalchemy import Table, Column, MetaData, Integer, String, DateTime
+from sqlalchemy import Table, Column, MetaData, Integer, String, DateTime, and_, column
 from sqlalchemy.orm import Mapped, mapped_column
 import time_machine
 
@@ -62,14 +62,19 @@ def test_read(repository, name, category, include_deleted):
 def test_read__filter(repository):
     item = Commodity(id=1,name="Demo",category="Food")
     item = repository.create(item)
-    items = repository.read([Commodity.category == 'Food', Commodity.name == "Demo"])
+    items = repository.read(
+        and_(column("category") == 'Food', 
+             column("name") == 'Demo'))
 
     assert len(items) == 1 and items[0].id == 1
 
 def test_read__filter_not_found(repository):
     item = Commodity(id=1,name="Demo",category="Food")
     item = repository.create(item)
-    items = repository.read([Commodity.category == 'Sports', Commodity.name == 'Demo'])
+    items = repository.read(and_(
+        column('category') == 'Sports',
+        column('name') == 'Demo'
+    ))
 
     assert len(items) == 0
 
@@ -131,7 +136,7 @@ def test_delete(repository, soft_delete):
     item = repository.create(item)
 
     repository.deleteById(1, soft_delete=soft_delete)
-    results = repository.read([], include_deleted=not soft_delete)
+    results = repository.read(None, include_deleted=not soft_delete)
     assert len([item for item in results if item.id != 1]) == 0
 
 def test_delete__not_found(repository):

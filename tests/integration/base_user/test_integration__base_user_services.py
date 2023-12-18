@@ -53,7 +53,7 @@ class UserModel(BaseUserModel):
     #role:RoleModel = Relationship(sa_relationship=relationship("RoleModel", lazy="joined"))
 
 class UserRepository(BaseUserRepository[UserModel]):
-    _identity_fields = ['username','phone']
+    #_identity_fields = ['username','phone']
 
     def __init__(self, 
                  db_services: DbServices = None, 
@@ -61,15 +61,8 @@ class UserRepository(BaseUserRepository[UserModel]):
         super().__init__(UserModel, db_services, password_services)
 
 class UserServices(BaseUserServices[UserModel]):
+    _identity_fields = ['username','phone']
     _subject_claim_field = "username"
-
-    def __init__(self, 
-                 repository: UserRepository,
-                 password_services: PaswordServices = None, 
-                 jwt_services: JWTServices = None) -> None:
-        super().__init__(repository, UserModel, password_services, jwt_services)
-
-
 
 
 @pytest.fixture
@@ -149,17 +142,15 @@ def test_create_token(repository,
         phone:Mapped[str] = mapped_column(String)
     
     class UserServices2(BaseUserServices[UserModel2]):
+        _identity_fields = ["username"]
         _subject_claim_field = subject_claim_field
-        
-        def __init__(self, password_services: PaswordServices = None, jwt_services: JWTServices = None) -> None:
-            super().__init__(repository, UserModel2, password_services, jwt_services)
 
     user = UserModel2(
         username = "johndoe",
         email="user@user.com",
         phone="123123"
     )
-    services = UserServices2()
+    services = UserServices2(repository)
     dt = datetime(2020,1,1)
     with time_machine.travel(dt):
         token = services.create_token(user,

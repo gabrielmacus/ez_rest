@@ -1,5 +1,5 @@
 from typing import List, TypeVar, Generic, Type
-from sqlalchemy import func, select, ColumnElement
+from sqlalchemy import func, select, ColumnElement, and_
 from sqlalchemy.orm import Session
 from ..db.services import DbServices
 from .models import BaseModel
@@ -27,15 +27,17 @@ class BaseRepository(ABC, Generic[T]):
 
     def read(
             self, 
-            query:ColumnElement[bool] = None,
+            filter:ColumnElement[bool] = None,
             limit:int = None, 
             offset:int = None,
             include_deleted:bool = False
             ) -> List[T]:
             
         with Session(self._db_services.get_engine()) as session:
-            statement = select(self._model) \
-                .where(*[] if query is None else query)
+            statement = select(self._model)
+
+            if filter is not None:
+                statement = statement.where(filter)
 
             if include_deleted == False:
                 statement = statement \
@@ -98,15 +100,18 @@ class BaseRepository(ABC, Generic[T]):
     def count(self, 
             filter:ColumnElement[bool] = None,
             include_deleted:bool = False) -> int:
-            
+        
         with Session(self._db_services.get_engine()) as session:
-            query = session\
-                .query(func.count(self._model.id))\
-                .where(*[] if filter is None else filter)
+            statement = session\
+                .query(func.count(self._model.id))
             
+            if filter is not None:
+                statement = statement.where(filter)
+                
             if include_deleted == False:
-                query = query.where(self._model.deleted_at == None)
+                statement = statement.where(self._model.deleted_at == None)
+
+            count_result = statement.scalar()
             
-            count_result = query.scalar()
         return count_result
         

@@ -3,13 +3,13 @@ from .models import BaseUserModel
 from ..crud.repository import BaseRepository
 from ..password.services import PaswordServices
 from ..db.services import DbServices
-from sqlalchemy import or_
+from sqlalchemy import or_, column
 
 T = TypeVar("T", bound=BaseUserModel)
 
 class BaseUserRepository(Generic[T], BaseRepository[T]):
     _password_services:PaswordServices
-    _identity_fields:List[str]
+    #_identity_fields:List[str]
 
     def __init__(self,
                  model:Type[T],
@@ -23,13 +23,15 @@ class BaseUserRepository(Generic[T], BaseRepository[T]):
         item.password = self._password_services.hash_password(item.password)
         return super().create(item)
 
+    """
     def read_by_identity_field(self, identity_field_value:str):
-        filters = \
-            [or_(
-                *[getattr(self._model,field) == identity_field_value 
+        filter = \
+            or_(
+                *[column(field) == identity_field_value 
                   for field in self._identity_fields]
-            )]
+            )
         
-        results = self.read(filters)
+        results = self.read(filter)
         if len(results) == 0: return None
         return results[0]
+    """

@@ -10,24 +10,22 @@ import datetime
 import os
 from typing import Generic, TypeVar, Type, List
 from ..singleton.models import SingletonMeta
+from sqlalchemy import column, or_
 
 TModel = TypeVar("TModel", bound=BaseUserModel)
-TRepository = TypeVar("TRepository", bound=BaseUserRepository)
 
 class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
+    _identity_fields:List[str]
     _subject_claim_field:str
     _repository:BaseUserRepository[TModel]
-    _user_type:Type[TModel]
     _password_services:PaswordServices
     _jwt_services:JWTServices
 
     def __init__(self, 
                  repository:BaseUserRepository[TModel],
-                 user_type:Type[TModel],
                  password_services:PaswordServices = None,
                  jwt_services:JWTServices = None
                  ) -> None:
-        self._user_type = user_type
         self._repository = repository
         self._password_services = password_services if password_services != None else PaswordServices()
         self._jwt_services = jwt_services if jwt_services != None else JWTServices()
@@ -45,7 +43,13 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
             T | None: Returns user if data is valid, otherwise returns None
         """
 
-        user = self._repository.read_by_identity_field(identity_value)
+        user_results = self._repository.read(
+            or_(
+                *[column(field) == identity_value 
+                  for field in self._identity_fields]
+            )
+        ) #self._repository.read_by_identity_field(identity_value)
+        user = None if len(user_results) == 0 else user_results[0]
         if user is None or not self._password_services\
                                     .verify_password(plain_password, user.password):
             return None
@@ -231,10 +235,10 @@ class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
         if payload is False:
             raise credentials_exception
     
-        results = self._repository.read([
-            getattr(self._user_type, self._subject_claim_field) == 
-            payload.get('sub')])
-
+        results = self._repository.read(
+            column(self._subject_claim_field) == payload.get('sub')
+        )
+        
         if len(results) == 0:
             raise credentials_exception
         

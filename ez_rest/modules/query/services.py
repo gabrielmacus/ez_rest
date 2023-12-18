@@ -79,11 +79,17 @@ class QueryServices:
             if match_start == 0 or \
                re.match(r'[A-Z]',query[match_start - 1]) is None:
                 key = '{'+str(index)+'}'
-                new_query = new_query.replace(match.group(0),key, 1)
+                new_query = new_query \
+                    .replace(match.group(0),
+                             key, 
+                             1)
                 groups[index] = match.group(1)
                 index += 1
             else:
-                new_query = new_query.replace(match.group(0),f'{{{match.group(1)}}}', 1)
+                new_query = new_query \
+                    .replace(match.group(0),
+                             f'{{{match.group(1)}}}', 
+                             1)
 
         if(new_query != query):
             return self.get_groups(new_query, groups)
@@ -170,6 +176,7 @@ class QueryServices:
             translated_groups[group_reference] = self.translate_group(
                 group, 
                 translated_groups)
+        
         return and_(translated_groups[group_reference])
 
     def translate_operation(self, 
@@ -332,9 +339,9 @@ class QueryServices:
                         limit:int,
                         filter:str = None,) -> Query:
         filter_query = None
-        if filter is not None:
+        if filter not in (None, ""):
             filter_query = self.translate_query(filter)
-            
+        
         return Query(
             filter=filter_query,
             limit=limit,
