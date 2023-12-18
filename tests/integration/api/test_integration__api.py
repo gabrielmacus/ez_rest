@@ -185,7 +185,9 @@ def test_api_read(client, count, limit, page, pages_count):
                         ("category eq 'Vegetables'",[1,2,3,4]),
                         ("(price ge 150 and (category eq 'Fruits' or category eq 'Dairy')) or (price ge 50 and category eq 'Vegetables')",[1,4,5]),
                         ("DIV(price,10) le 3",[2,3]),
-                        ("SUB(DIV(price,10),1) lt 2",[2])
+                        ("SUB(DIV(price,10),1) lt 2",[2]),
+                        ("price gt 49.5",[1,4,5]),
+                        ("price gt MUL(50,2)",[5])
                         ])
 def test_api_read__filter(client, filter, expected_ids):
     items = [
