@@ -5,5 +5,8 @@ class InvalidOperatorException(Exception):
 class InvalidOperationException(Exception):
     pass
 
-class InvalidOrderByClause(Exception):
+class InvalidOrderByClauseException(Exception):
+    pass
+
+class InvalidFieldsException(Exception):
     pass

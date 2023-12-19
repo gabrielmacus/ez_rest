@@ -51,7 +51,8 @@ class BaseController(ABC, Generic[TModel]):
             query.filter,
             query.limit,
             offset,
-            query.order_by)
+            query.order_by,
+            query.fields)
         pages_count = self._pagination_services.get_pages_count(
             count, 
             query.limit)

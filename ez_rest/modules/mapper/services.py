@@ -24,7 +24,6 @@ class MapperServices(metaclass=SingletonMeta):
                 source:S,
                 target_type:Type[T]
                 ) -> T:
-        
         data = self.map_dict(source,target_type)
         result = target_type(**data)
         return result

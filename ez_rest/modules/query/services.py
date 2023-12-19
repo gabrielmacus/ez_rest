@@ -1,8 +1,8 @@
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import column, ColumnElement, func, UnaryExpression
+from sqlalchemy import column, ColumnElement, ColumnClause, func, UnaryExpression
 from typing import TypeVar, List, Type, Callable
-from .exceptions import InvalidOperatorException,InvalidOperationException,InvalidOrderByClause
+from .exceptions import InvalidOperatorException,InvalidOperationException,InvalidFieldsException,InvalidOrderByClauseException
 import regex as re
 import operator
 from .models import Operator, Functions, Query
@@ -344,20 +344,32 @@ class QueryServices:
             col = col.strip()
             match = re.match(pattern, col)
             if match is None:
-                raise InvalidOrderByClause(f"Invalid column: {col}")
+                raise InvalidOrderByClauseException(f"Invalid column: {col}")
             if match.group(2).upper() == 'ASC':
                 translated_column = column(match.group(1)).asc()
             else:
                 translated_column = column(match.group(1)).desc()
             translated_columns.append(translated_column)
             
-        return translated_columns    
+        return translated_columns
+    
+    def translate_fields(self,
+                         fields:str) -> List[str]:
+        fields_list = [f.strip() for f in fields.split(',')]
+        fields_columns:List[str] = []
+        for field in fields_list:
+            if re.match(r'^[a-zA-Z_0-9]+$', field) is None:
+                raise InvalidFieldsException(f"Invalid field: {field}")
+            fields_columns.append(field)
+        return fields_columns
+
 
     def handle_query(self, 
                         page:int,
                         limit:int,
                         filter:str = None,
-                        order_by:str = None) -> Query:
+                        order_by:str = None,
+                        fields:str = None) -> Query:
         filter_query = None
         if filter not in (None, ""):
             filter_query = self.translate_query(filter)
@@ -366,10 +378,15 @@ class QueryServices:
         if order_by not in (None, ""):
             order_by_query = self.translate_order_by(order_by)
         
+        fields_query = None
+        if fields not in (None, ""):
+            fields_query = self.translate_fields(fields)
+        
         return Query(
             filter=filter_query,
             limit=limit,
             page=page,
-            order_by=order_by_query
+            order_by=order_by_query,
+            fields=fields_query
         )
         

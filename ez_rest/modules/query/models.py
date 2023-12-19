@@ -1,7 +1,7 @@
 
 from enum import Enum
 from typing import List, Optional
-from sqlalchemy import ColumnElement, UnaryExpression
+from sqlalchemy import ColumnElement, UnaryExpression, ColumnClause
 from dataclasses import dataclass
 
 class Functions(Enum):
@@ -31,3 +31,4 @@ class Query():
     page:str
     limit:str
     order_by:Optional[List[UnaryExpression]]
+    fields:Optional[List[str]]

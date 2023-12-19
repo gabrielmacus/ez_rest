@@ -44,16 +44,10 @@ class ProductSaveDTO2(BaseDTO):
     name:str
     category:str
 
-class ProductSavePartialDTO2(BaseDTO):
+class ProductPartialDTO2(BaseDTO):
     price:Optional[float] = None
     name:Optional[str] = None
     category:Optional[str] = None
-
-class ProductReadDTO2(BaseDTO):
-    price:float
-    name:str
-    category:str
-
 
 class ProductsRepository(BaseRepository[Product2]):
     def __init__(self, 
@@ -69,25 +63,25 @@ class ProductsController(BaseController[Product2]):
                          )
     def create(self, 
                item: ProductSaveDTO2):
-        return super().create(item, Product2, ProductReadDTO2)
+        return super().create(item, Product2, ProductPartialDTO2)
     
     def read(self,
         query: Annotated[Query, Depends(query_services.handle_query)]):
-        return super().read(ProductReadDTO2, query)
+        return super().read(ProductPartialDTO2, query)
     
     def read_by_id(self, id: int) :
-        return super().read_by_id(id, ProductReadDTO2)
+        return super().read_by_id(id, ProductPartialDTO2)
 
     def update_by_id(self, 
                      id: int, 
-                     partial_data: ProductSavePartialDTO2):
+                     partial_data: ProductPartialDTO2):
         return super().update_by_id(id, 
                                     partial_data, 
-                                    ProductSavePartialDTO2, 
+                                    ProductPartialDTO2, 
                                     Product2)
 
 mapper_services.register(
-    ProductReadDTO2,
+    ProductPartialDTO2,
     Product2,
     lambda src : {
         "id":src.id,
@@ -108,15 +102,25 @@ mapper_services.register(
     }
 ) 
 
+def map_partial(src):
+    data = src.__dict__
+    new_data =  {
+        
+    }
+    if 'id' in data:
+        new_data['id'] = src.id
+    if 'price' in data:
+        new_data['price'] = src.price
+    if 'name' in data:
+        new_data['name'] = src.name
+    if 'category' in data:
+        new_data['category'] = src.category
+    return new_data
+
 mapper_services.register(
     Product2,
-    ProductReadDTO2,
-    lambda src : {
-        "id":src.id,
-        "name":src.name,
-        "category":src.category,
-        "price":src.price
-    }
+    ProductPartialDTO2,
+    map_partial
 ) 
 
 @pytest.fixture
@@ -136,7 +140,7 @@ def client():
     app.add_api_route('/products', 
                     products_controller.read,
                     methods=['GET'],
-                    response_model=PaginationDTO[ProductReadDTO2])
+                    response_model=PaginationDTO[ProductPartialDTO2])
     return TestClient(app) 
 
 
@@ -159,8 +163,9 @@ def test_api_create(client):
     assert data["count"] == count
 
 @pytest.mark.parametrize("count, limit, page, pages_count",
-                         [(100, 10, 1, 10),
-                          ])
+                        [
+                            (100, 10, 1, 10),
+                        ])
 def test_api_read(client, count, limit, page, pages_count):
     for i  in range(count):
         client.post('/products', json={
@@ -184,9 +189,9 @@ def test_api_read(client, count, limit, page, pages_count):
                         ("name eq 'Durian'",'', []),
                         ("category eq 'Vegetables'",'category asc, name desc',[3,4,2,1]),
                         ("(price ge 150 and (category eq 'Fruits' or category eq 'Dairy')) or (price ge 50 and category eq 'Vegetables')",'',[1,4,5]),
-                        ("DIV(price,10) le 3",'',[2,3]),
+                        ("DIV(price,10) le 3",'price desc',[3,2]),
                         ("SUB(DIV(price,10),1) lt 2",'',[2]),
-                        ("price gt 49.5",'',[1,4,5]),
+                        ("price gt 49.5",'price asc',[4,1,5]),
                         ("price gt MUL(50,2)",'',[5])
                         ])
 def test_api_read__filter_order(client, filter, order_by, expected_ids):
@@ -223,3 +228,36 @@ def test_api_read__filter_order(client, filter, order_by, expected_ids):
 
     data = response.json()
     assert [i["id"] for i in data["items"]] == expected_ids
+
+
+@pytest.mark.parametrize("fields",
+[
+    ("category,name"),
+    ("category"),
+    ("price"),
+    ("name,price")
+ ])
+def test_api_read__fields(client, fields):
+    client.post('/products', json={
+            "name":f"Apple",
+            "category":"Vegetables",
+            "price": "100"
+    })
+
+    response = client.get(f'/products?page=1&limit=20&fields={fields}')
+    data = response.json()['items'][0]
+    
+    if 'category' in fields:
+        assert data['category'] is not None
+    else:
+        assert data['category'] is None
+    
+    if 'name' in fields:
+        assert data['name'] is not None
+    else:
+        assert data['name'] is None
+    
+    if 'price' in fields:
+        assert data['price'] is not None
+    else:
+        assert data['price'] is None

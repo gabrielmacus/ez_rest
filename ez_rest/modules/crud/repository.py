@@ -1,6 +1,6 @@
 from typing import List, TypeVar, Generic, Type
-from sqlalchemy import func, select, ColumnElement, and_, UnaryExpression
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select, ColumnElement, ColumnClause, and_, UnaryExpression,column
+from sqlalchemy.orm import Session, load_only, undefer
 from ..db.services import DbServices
 from .models import BaseModel
 from datetime import datetime
@@ -31,12 +31,18 @@ class BaseRepository(ABC, Generic[T]):
             limit:int = None, 
             offset:int = None,
             order_by:List[UnaryExpression] = None,
+            fields:List[str] = None,
             include_deleted:bool = False
             ) -> List[T]:
             
         with Session(self._db_services.get_engine()) as session:
             statement = select(self._model)
 
+            if fields is not None:
+                statement = statement.options(
+                    load_only(*[getattr(self._model,f) for f in fields])
+                )
+                
             if filter is not None:
                 statement = statement.where(filter)
 
@@ -54,6 +60,7 @@ class BaseRepository(ABC, Generic[T]):
 
             results = session.execute(statement)
             items = results.scalars().all()
+
         return items
     
     def readById(
