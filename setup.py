@@ -21,6 +21,7 @@ setup(
         "python-jose>=^3.3.0",
         "sqlalchemy>=^2.0.23",
         "regex>=^2023.10.3"
+        "email-validator>=^2.1.0.post1"
     ],
     extras_require={
         "dev": ["pytest==7.4.3", 
