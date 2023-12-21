@@ -20,8 +20,8 @@ def services():
     services.register(User, 
                       PublicUser,
                       lambda src: {
-                          "fullname": f"{src.name} {src.surname}",
-                          "email": src.email
+                          "fullname": f"{src['name']} {src['surname']}",
+                          "email": src["email"]
                       })
     return services
 

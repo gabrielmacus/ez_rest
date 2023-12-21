@@ -60,7 +60,6 @@ class BaseRepository(ABC, Generic[T]):
 
             results = session.execute(statement)
             items = results.scalars().all()
-
         return items
     
     def readById(

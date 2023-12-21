@@ -339,19 +339,23 @@ class QueryServices:
         order_by = order_by.strip()
         pattern = r'^([a-zA-Z0-9_]+) (desc|asc|DESC|ASC)$'
         columns = order_by.split(',')
-        translated_columns:List[UnaryExpression] = []
+        
+        translated_expressions:List[UnaryExpression] = []
         for col in columns:
             col = col.strip()
             match = re.match(pattern, col)
+
             if match is None:
                 raise InvalidOrderByClauseException(f"Invalid column: {col}")
-            if match.group(2).upper() == 'ASC':
-                translated_column = column(match.group(1)).asc()
-            else:
-                translated_column = column(match.group(1)).desc()
-            translated_columns.append(translated_column)
             
-        return translated_columns
+            col = column(match.group(1))
+            translated_expression = col.desc()
+            if match.group(2).upper() == 'ASC':
+                translated_expression = col.asc()
+                
+            translated_expressions.append(translated_expression)
+            
+        return translated_expressions
     
     def translate_fields(self,
                          fields:str) -> List[str]:

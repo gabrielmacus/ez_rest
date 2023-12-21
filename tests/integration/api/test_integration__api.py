@@ -17,6 +17,8 @@ from ez_rest.modules.pagination.models import PaginationDTO
 import pytest
 import random
 
+from pydantic import BaseModel as PydanticModel
+
 query_services = QueryServices()
 
 meta = MetaData()
@@ -84,10 +86,10 @@ mapper_services.register(
     ProductPartialDTO2,
     Product2,
     lambda src : {
-        "id":src.id,
-        "name":src.name,
-        "category":src.category,
-        "price":src.price
+        "id":src["id"],
+        "name":src["name"],
+        "category":src["category"],
+        "price":src["price"]
     }
 ) 
 
@@ -95,10 +97,10 @@ mapper_services.register(
     ProductSaveDTO2,
     Product2,
     lambda src : {
-        "id":src.id,
-        "name":src.name,
-        "category":src.category,
-        "price":src.price
+        "id":src["id"],
+        "name":src["name"],
+        "category":src["category"],
+        "price":src["price"]
     }
 ) 
 
@@ -108,13 +110,13 @@ def map_partial(src):
         
     }
     if 'id' in data:
-        new_data['id'] = src.id
+        new_data['id'] = src["id"]
     if 'price' in data:
-        new_data['price'] = src.price
+        new_data['price'] = src["price"]
     if 'name' in data:
-        new_data['name'] = src.name
+        new_data['name'] = src["name"]
     if 'category' in data:
-        new_data['category'] = src.category
+        new_data['category'] = src["category"]
     return new_data
 
 mapper_services.register(
@@ -238,6 +240,7 @@ def test_api_read__filter_order(client, filter, order_by, expected_ids):
     ("name,price")
  ])
 def test_api_read__fields(client, fields):
+
     client.post('/products', json={
             "name":f"Apple",
             "category":"Vegetables",

@@ -45,47 +45,32 @@ class ProductSaveDTO(BaseDTO):
     product_name:str
     product_category:str
 
-class ProductSavePartialDTO(BaseDTO):
-    product_name:Optional[str] = None
-    product_category:Optional[str] = None
-
 class ProductReadDTO(BaseDTO):
     name_category:str
 
 
-mapper_services.register(
-    ProductSaveDTO,
-    Product,
-    lambda src : {
-        "id":src.id,
-        "name":src.product_name,
-        "category":src.product_category
-    }
-) 
 
-
-def map_product_read_dto(src:ProductSavePartialDTO):
+def map_partial(src:dict):
     data = {}
-    partial_data = src.model_dump(exclude_unset=True)
-    if "product_name" in partial_data:
-        data["name"] = partial_data["product_name"]
-    if "product_category" in partial_data:
-        data["category"] = partial_data["product_category"]
+    if "product_name" in src:
+        data["name"] = src["product_name"]
+    if "product_category" in src:
+        data["category"] = src["product_category"]
 
     return data
 
 mapper_services.register(
-    ProductSavePartialDTO,
+    ProductSaveDTO,
     Product,
-    map_product_read_dto
-)
+    map_partial
+) 
    
 mapper_services.register(
     Product,
     ProductReadDTO,
     lambda src : {
-        "id":src.id,
-        "name_category":f'{src.name} {src.category}' if src.category is not None else src.name
+        "id":src["id"],
+        "name_category":f'{src["name"]} {src["category"]}' if src["category"] is not None else src["name"]
     }
 )
 query_services = QueryServices()
@@ -115,10 +100,10 @@ class ProductsController(BaseController[Product]):
 
     def update_by_id(self, 
                      id: int, 
-                     partial_data: ProductSavePartialDTO):
+                     partial_data: dict):
         return super().update_by_id(id, 
                                     partial_data, 
-                                    ProductSavePartialDTO, 
+                                    ProductSaveDTO, 
                                     Product)
 
 
@@ -202,7 +187,7 @@ def test_controller_update_by_id(controller, id, partial_data, expected_name_cat
     if expected_name_category != None:
         controller.update_by_id(
             id,
-            ProductSavePartialDTO(**partial_data)
+            partial_data
         )
         updated_item = controller.read_by_id(id)
         assert updated_item.name_category == expected_name_category
@@ -210,7 +195,7 @@ def test_controller_update_by_id(controller, id, partial_data, expected_name_cat
         with pytest.raises(HTTPException) as ex:
             controller.update_by_id(
                 id,
-                ProductSavePartialDTO(**partial_data)
+                partial_data
             )
     
         assert ex.value.status_code == status.HTTP_404_NOT_FOUND

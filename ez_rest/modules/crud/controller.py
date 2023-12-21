@@ -77,7 +77,7 @@ class BaseController(ABC, Generic[TModel]):
 
     def update_by_id( self, 
                     id:int,
-                    partial_item:TDtoIn,
+                    partial_item:dict,
                     type_in:Type[TDtoIn],
                     type_out:Type[TModel]):
         
@@ -86,8 +86,9 @@ class BaseController(ABC, Generic[TModel]):
             raise HTTPException(status.HTTP_404_NOT_FOUND)
         
         partial_data = self._mapper_services.map_dict(
-            type_in(**partial_item.model_dump(exclude_unset=True)),
-            type_out
+            partial_item, #type_in(**partial_item.model_dump(exclude_unset=True)),
+            type_out,
+            type_in
         )
         
         self._repository.updateById(partial_data, id)

@@ -11,19 +11,33 @@ class MapperServices(metaclass=SingletonMeta):
     def register(self, 
                  source_type:Type[S], 
                  target_type:Type[T],
-                 map_fn:Callable[[S],dict]):
+                 map_fn:Callable[[dict],dict]):
         self._map_fn[f'{source_type.__name__}__{target_type.__name__}'] = map_fn
 
     def map_dict(self,
-                 source:S,
-                 target:Type[T]):
-            result:dict = self._map_fn[f'{source.__class__.__name__}__{target.__name__}'](source)
-            return result
+                 source:(S|dict),
+                 target_type:Type[T],
+                 source_type:Type[S] = None
+                 ):
+        if isinstance(source, dict) and source_type is None:
+             raise Exception('Source type should be specified for mapping dicts')
+        elif not isinstance(source, dict):
+             source_type = source.__class__
+        
+        data = source if isinstance(source,dict) else source.__dict__
+        result:dict = self._map_fn[f'{source_type.__name__}__{target_type.__name__}'](data)
+        return result
 
     def map(self,
-                source:S,
-                target_type:Type[T]
+                source:(S|dict),
+                target_type:Type[T],
+                source_type:Type[S] = None
                 ) -> T:
+        if isinstance(source, dict) and source_type is None:
+             raise Exception('Source type should be specified for mapping dicts')
+        elif not isinstance(source, dict):
+             source_type = source.__class__
+
         data = self.map_dict(source,target_type)
         result = target_type(**data)
         return result
