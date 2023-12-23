@@ -2,9 +2,8 @@ from fastapi import APIRouter
 from typing import TypeVar, Generic
 from .controller import BaseController
 
-TController = TypeVar("TController", bound=BaseController)
 
-class CrudServices(Generic[TController]):
+class CrudServices[TController:BaseController]():
     _controller:TController
 
     def __init__(self,

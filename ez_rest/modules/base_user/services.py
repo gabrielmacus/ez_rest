@@ -12,9 +12,8 @@ from typing import Generic, TypeVar, Type, List
 from ..singleton.models import SingletonMeta
 from sqlalchemy import column, or_
 
-TModel = TypeVar("TModel", bound=BaseUserModel)
 
-class BaseUserServices(Generic[TModel], metaclass=SingletonMeta):
+class BaseUserServices[TModel:BaseUserModel](metaclass=SingletonMeta):
     _identity_fields:List[str]
     _subject_claim_field:str
     _repository:BaseUserRepository[TModel]

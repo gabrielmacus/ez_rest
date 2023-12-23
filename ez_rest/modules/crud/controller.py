@@ -12,11 +12,7 @@ from ..query.models import Query
 
 query_services = QueryServices()
 
-TModel = TypeVar("TModel", bound=BaseModel)
-TDtoIn = TypeVar("TDtoIn", bound=BaseDTO)
-TDtoOut = TypeVar("TDtoOut", bound=BaseDTO)
-
-class BaseController(ABC, Generic[TModel]):
+class BaseController[TModel: BaseModel](ABC):
     _repository:BaseRepository[TModel]
     _pagination_services:PaginationServices
     _mapper_services:MapperServices
@@ -31,7 +27,8 @@ class BaseController(ABC, Generic[TModel]):
         self._pagination_services = PaginationServices() if pagination_services is None else pagination_services
         self._mapper_services = mapper if mapper_services is None else mapper_services
 
-    def create(self, 
+    def create[TDtoIn :BaseDTO, 
+               TDtoOut:BaseDTO](self, 
                item:TDtoIn, 
                type_in:Type[TModel], 
                type_out:Type[TDtoOut]):
@@ -39,7 +36,7 @@ class BaseController(ABC, Generic[TModel]):
         created_item = self._repository.create(new_item)
         return  self._mapper_services.map(created_item, type_out)
     
-    def read(
+    def read[TDtoOut:BaseDTO](
             self,
             type_out:Type[TDtoOut],
             query:Query
@@ -66,7 +63,7 @@ class BaseController(ABC, Generic[TModel]):
             items=items
         )
 
-    def read_by_id(self,
+    def read_by_id[TDtoOut:BaseDTO](self,
                 id:int, 
                 type_out:Type[TDtoOut]) -> TDtoOut:
         item = self._repository.readById(id)
@@ -75,7 +72,7 @@ class BaseController(ABC, Generic[TModel]):
         
         return self._mapper_services.map(item, type_out)
 
-    def update_by_id( self, 
+    def update_by_id[TDtoIn:BaseDTO]( self, 
                     id:int,
                     partial_item:dict,
                     type_in:Type[TDtoIn],

@@ -7,8 +7,6 @@ import regex as re
 import operator
 from .models import Operator, Functions, Query
 
-TModel = TypeVar("TModel", bound=DeclarativeBase)
-
 QueryValue = str | int | float | ColumnElement[bool]
 QueryValueList = List[QueryValue]
 

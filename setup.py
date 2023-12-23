@@ -30,7 +30,7 @@ setup(
                 "pytest-cov==4.1.0",
                 "httpx==0.25.2"],
     },
-    python_requires=">=3.10",
+    python_requires=">=3.12",
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.10",

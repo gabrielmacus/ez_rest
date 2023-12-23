@@ -6,9 +6,7 @@ from .models import BaseModel
 from datetime import datetime
 from abc import ABC
 
-T = TypeVar("T", bound=BaseModel)
-
-class BaseRepository(ABC, Generic[T]):
+class BaseRepository[T:BaseModel](ABC):
     _db_services:DbServices
     _model: Type[T]
     

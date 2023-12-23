@@ -3,9 +3,6 @@ from ..singleton.models import SingletonMeta
 from pydantic import BaseModel, TypeAdapter
 from .exceptions import InvalidFieldException, MappingNotFoundException
 
-S = TypeVar("S")
-T = TypeVar("T", bound=BaseModel)
-
 class MapperServices(metaclass=SingletonMeta):
     
      _map_fn:dict = {}
@@ -69,7 +66,7 @@ class MapperServices(metaclass=SingletonMeta):
                    target[field] = source[field] 
           return target
      
-     def map_dict(self,
+     def map_dict[S, T:BaseModel](self,
                  source:(S|dict),
                  target_type:Type[T],
                  source_type:Type[S] = None
@@ -105,7 +102,7 @@ class MapperServices(metaclass=SingletonMeta):
 
           return result
 
-     def map(self,
+     def map[S, T:BaseModel](self,
                 source:(S|dict),
                 target_type:Type[T],
                 source_type:Type[S] = None

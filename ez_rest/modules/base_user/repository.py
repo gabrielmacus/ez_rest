@@ -5,9 +5,7 @@ from ..password.services import PaswordServices
 from ..db.services import DbServices
 from sqlalchemy import or_, column
 
-T = TypeVar("T", bound=BaseUserModel)
-
-class BaseUserRepository(Generic[T], BaseRepository[T]):
+class BaseUserRepository[T: BaseUserModel](BaseRepository[T]):
     _password_services:PaswordServices
     #_identity_fields:List[str]
 
