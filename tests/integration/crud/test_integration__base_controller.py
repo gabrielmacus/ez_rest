@@ -23,30 +23,6 @@ from pydantic import ValidationError
 from fastapi import Depends
 from typing import Annotated
 
-meta = MetaData()
-roles = Table(
-    'products',
-    meta,
-    Column('created_at',DateTime),
-    Column('updated_at',DateTime),
-    Column('deleted_at',DateTime),
-    Column('id', Integer, primary_key=True),
-    Column('name',String),
-    Column('category',String),
-)
-
-
-class Product(BaseModel):
-     __tablename__ = "products"
-     name:Mapped[str] = mapped_column(String(100))
-     category:Mapped[str] = mapped_column(String(100))
-
-class ProductSaveDTO(BaseDTO):
-    product_name:str
-    product_category:str
-
-class ProductReadDTO(BaseDTO):
-    name_category:str
 
 
 

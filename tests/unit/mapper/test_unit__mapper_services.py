@@ -1,4 +1,5 @@
 from ez_rest.modules.mapper.services import MapperServices
+from ez_rest.modules.mapper.exceptions import MappingNotFoundException,InvalidFieldException
 from ez_rest.modules.crud.models import BaseModel,BaseDTO
 from dataclasses import dataclass
 import pytest
@@ -109,33 +110,114 @@ def test_map_default(services, source, data, target_type,expected_data):
     print(result)
     assert result == expected_data
 
-
-
-@pytest.mark.parametrize("target, target_type, expect_exception", [
+@pytest.mark.parametrize("data, mappings, expected_data", [
     ({
-        "fullname":"asdkasd asid ahjsiodh ioashdiosa",
-        "email":"a@a.com"
-    },PublicUser,False)
+        "name":"John",
+        "surname":"Doe"
+    },
+    {
+        "fullname":lambda src: f"{src['name']} {src['surname']}"
+    },
+    {
+        "fullname":"John Doe"
+    }),
+    ({
+        "fullname":"John Doe"
+    },
+    {
+        "name":lambda src: src["fullname"].split(" ")[0],
+        "surname":lambda src: src["fullname"].split(" ")[1]
+    },
+    {
+        "name":"John",
+        "surname":"Doe"
+    })
 ])
-def test_validate_dict_fields(services, target, target_type, expect_exception):
-    services.validate_dict_fields(target, target_type)
-    assert 0 == 1
+def test_execute_mappings(services, data, mappings, expected_data):
+    assert services.execute_mappings(data,
+                                     mappings) == expected_data
 
 
-def test_map_dict(services):
-    dict = services.map_dict(
+# TODO: Test trying to map incomplete field (example: "name" to "fullname", that's composed by "name" and "surname")
+    
+@pytest.mark.parametrize("source,target_type,source_type,expected_dict,expected_exception",[
+    (
         User(
             email="user@user.com",
             name="John",
             surname="Doe",
             password="123456"
         ),
-        PublicUser
-    )
-    assert dict == {
+        PublicUser,
+        None,
+        {
         "email":"user@user.com",
         "fullname":"John Doe"
-    }
+        },
+        None
+    ),
+    (
+        {
+            "email":"user@user.com",
+            "name":"John",
+            "surname":"Doe",
+            "password":"123456"
+        },
+        PublicUser,
+        User,
+        {
+        "email":"user@user.com",
+        "fullname":"John Doe"
+        },
+        None
+    ),
+    (
+        {
+            "email":"user@user.com",
+            "name":"John",
+            "surname":"Doe",
+            "password":"123456"
+        },
+        PublicUser,
+        None,
+        None,
+        ValueError
+    ),
+    (
+        {
+            "email":"user@user.com",
+            "name":"John",
+            "surname":"Doe",
+            "password":"123456"
+        },
+        User,
+        PublicUser,
+        None,
+        MappingNotFoundException
+    )
+])
+def test_map_dict(services, 
+                  source, 
+                  target_type, 
+                  source_type, 
+                  expected_dict, 
+                  expected_exception):
+    
+    if expected_exception is None:
+        dict = services.map_dict(
+            source,
+            target_type,
+            source_type
+        )
+
+        assert dict == expected_dict
+    else:
+        with pytest.raises(expected_exception):
+            services.map_dict(
+                source,
+                target_type,
+                source_type
+            )
 
 def test_map(services):
     public_user = services.map(

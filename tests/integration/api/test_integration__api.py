@@ -21,66 +21,6 @@ from pydantic import BaseModel as PydanticModel
 
 query_services = QueryServices()
 
-meta = MetaData()
-roles = Table(
-    'products2',
-    meta,
-    Column('created_at',DateTime),
-    Column('updated_at',DateTime),
-    Column('deleted_at',DateTime),
-    Column('id', Integer, primary_key=True),
-    Column('name',String),
-    Column('category',String),
-    Column('price', Float)
-)
-
-
-class Product2(BaseModel):
-     __tablename__ = "products2"
-     price:Mapped[float] = mapped_column(Float)
-     name:Mapped[str] = mapped_column(String(100))
-     category:Mapped[str] = mapped_column(String(100))
-
-class ProductSaveDTO2(BaseDTO):
-    price:float
-    name:str
-    category:str
-
-class ProductPartialDTO2(BaseDTO):
-    price:Optional[float] = None
-    name:Optional[str] = None
-    category:Optional[str] = None
-
-class ProductsRepository(BaseRepository[Product2]):
-    def __init__(self, 
-                 db_services: DbServices = None) -> None:
-        super().__init__(Product2, db_services)
-
-class ProductsController(BaseController[Product2]):
-    def __init__(self,
-                 repository:ProductsRepository,
-                 pagination_services: PaginationServices = None) -> None:
-        super().__init__(repository,
-                         pagination_services,
-                         )
-    def create(self, 
-               item: ProductSaveDTO2):
-        return super().create(item, Product2, ProductPartialDTO2)
-    
-    def read(self,
-        query: Annotated[Query, Depends(query_services.handle_query)]):
-        return super().read(ProductPartialDTO2, query)
-    
-    def read_by_id(self, id: int) :
-        return super().read_by_id(id, ProductPartialDTO2)
-
-    def update_by_id(self, 
-                     id: int, 
-                     partial_data: ProductPartialDTO2):
-        return super().update_by_id(id, 
-                                    partial_data, 
-                                    ProductPartialDTO2, 
-                                    Product2)
 
 mapper_services.register(
     ProductPartialDTO2,

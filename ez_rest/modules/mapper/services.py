@@ -13,7 +13,7 @@ class MapperServices(metaclass=SingletonMeta):
      def register(self, 
                  source_type:Type[S], 
                  target_type:Type[T],
-                 mappings:dict[str, str] = None):
+                 mappings:dict[str, Callable[[dict[str,any]], any]] = None):
         self._map_fn[f'{source_type.__name__}__{target_type.__name__}'] = mappings
      
      def execute_mappings(self,
@@ -45,36 +45,14 @@ class MapperServices(metaclass=SingletonMeta):
               fn = mappings[key]
               mapped_data[key] = fn(data)
           return mapped_data
-     
-     def validate_dict_fields(self,
-                              target:dict[str, any],
-                              target_type:Type[T]) -> None:
-          """Validates each field in target data, without taking
-          the object as a whole, so it doesn't validates
-          required fields
           
-          Args:
-              target (dict[str, any]): Target data
-              target_type (Type[T]): Type to get validation criteria
-
-          Raises:
-              InvalidFieldException: If field value is invalid or
-              doesn't exists in target
-          """
-          for key in target:
-               value = target[key]
-               validator = TypeAdapter(target_type.model_fields[key].annotation)
-               validation_result = validator.validate_python(value)
-
-               if validation_result is None:
-                   raise InvalidFieldException(key)
-     
      def map_default(self,
                     source:dict[str, any],
                     target:dict[str, any],
                     target_type:Type[T]) -> dict[str, any]:
           """Maps fields that are shared between target model
-          and source model but are not not present in target dict
+          and source model, and are set in source dict
+          but not set in target dict
 
           Args:
               source (dict[str, any]): Source data
