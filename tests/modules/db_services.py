@@ -6,7 +6,7 @@ import os
 
 TEST_DB_PATH = 'test.db'
 TEST_DB_URI = f'sqlite:///{TEST_DB_PATH}'
-class MockDbServices():
+class DbServices():
     
     def __init__(self) -> None:
         if os.path.exists(TEST_DB_PATH):

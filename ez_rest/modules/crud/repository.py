@@ -35,7 +35,7 @@ class BaseRepository[T:BaseModel](ABC):
             
         with Session(self._db_services.get_engine()) as session:
             statement = select(self._model)
-
+            
             if fields is not None:
                 statement = statement.options(
                     load_only(*[getattr(self._model,f) for f in fields])

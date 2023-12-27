@@ -1,7 +1,7 @@
 import pytest
 from ez_rest.modules.query.services import QueryServices
 from ez_rest.modules.query.exceptions import InvalidOperatorException
-from tests.mock_db_services import MockDbServices
+from tests.modules.db_services import DbServices
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy import BigInteger,String, Integer
 from sqlalchemy import or_, and_, Column, create_engine
@@ -14,7 +14,7 @@ class Student(DeclarativeBase):
 
 @pytest.fixture
 def engine():
-    db_services = MockDbServices()
+    db_services = DbServices()
     engine = db_services.get_engine()
     return engine
 

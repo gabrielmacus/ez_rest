@@ -1,6 +1,7 @@
 from ez_rest.modules.mapper.services import MapperServices
 from ez_rest.modules.mapper.exceptions import MappingNotFoundException,InvalidFieldException
 from ez_rest.modules.crud.models import BaseModel,BaseDTO
+from ez_rest.modules.mapper.models import IgnoredAttr
 from dataclasses import dataclass
 import pytest
 from pydantic import BaseModel as PydancticModel, Field, EmailStr
@@ -33,9 +34,9 @@ def services():
     services = MapperServices()
     services.register(User, 
                       PublicUser,
-                      lambda src: {
-                          "fullname": f"{src['name']} {src['surname']}",
-                          "email": src["email"]
+                    {
+                          "fullname": lambda src: f"{src['name']} {src['surname']}",
+                          "email": lambda src: src["email"]
                       })
     return services
 
@@ -104,11 +105,22 @@ def services():
             "email":"user@user.com"
         }
     )
+    
 ])
 def test_map_default(services, source, data, target_type,expected_data):
     result = services.map_default(source, data, target_type)
-    print(result)
     assert result == expected_data
+
+'''
+@pytest.mark.parametrize("value, data, expected_result",[
+    ("{name} {surname}", {"name":"John","surname":"Doe"},"John Doe"),
+    (" {name} {surname} ", {"name":"John","surname":"Doe"},"John Doe"),
+    ("{name} {surname}", {"name":"John"},"John"),
+    ("price", {"price":100},100)
+])
+def test_parse_mapping(services, value, data, expected_result):
+    assert services.parse_mapping(value, data) == expected_result
+'''
 
 @pytest.mark.parametrize("data, mappings, expected_data", [
     ({
@@ -131,6 +143,30 @@ def test_map_default(services, source, data, target_type,expected_data):
     {
         "name":"John",
         "surname":"Doe"
+    }),
+    ({
+        "name":"John",
+        "surname":"Doe"
+    },
+    {
+        "fullname":lambda src: f"{src['name']} {src['surname']}",
+        "price":lambda src: src.get('price', IgnoredAttr())
+    },
+    {
+        "fullname":"John Doe"
+    }),
+    ({
+        "name":"John",
+        "surname":"Doe",
+        "price":100
+    },
+    {
+        "fullname":lambda src: f"{src['name']} {src['surname']}",
+        "price":lambda src: src.get('price', IgnoredAttr())
+    },
+    {
+        "fullname":"John Doe",
+        "price":100
     })
 ])
 def test_execute_mappings(services, data, mappings, expected_data):

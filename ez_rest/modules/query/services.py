@@ -6,11 +6,12 @@ from .exceptions import InvalidOperatorException,InvalidOperationException,Inval
 import regex as re
 import operator
 from .models import Operator, Functions, Query
+from ..singleton.models import SingletonMeta
 
 QueryValue = str | int | float | ColumnElement[bool]
 QueryValueList = List[QueryValue]
 
-class QueryServices:
+class QueryServices(metaclass=SingletonMeta):
     def get_members(self, 
                     group:str) -> List[List[str]]:
         """Gets members of a group of operations. Example:

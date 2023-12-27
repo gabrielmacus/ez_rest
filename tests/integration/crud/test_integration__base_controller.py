@@ -1,5 +1,4 @@
 from typing import List, Optional, Type
-from tests.mock_db_services import MockDbServices
 from ez_rest.modules.crud.repository import BaseRepository
 from ez_rest.modules.crud.models import BaseModel, BaseDTO
 from ez_rest.modules.crud.controller import BaseController
@@ -23,73 +22,17 @@ from pydantic import ValidationError
 from fastapi import Depends
 from typing import Annotated
 
+from tests.modules.products.controller import ProductsController
+from tests.modules.products.models import ProductSaveDTO, ProductReadDTO
+from tests.modules.products.repository import ProductsRepository
 
 
-
-def map_partial(src:dict):
-    data = {}
-    if "product_name" in src:
-        data["name"] = src["product_name"]
-    if "product_category" in src:
-        data["category"] = src["product_category"]
-
-    return data
-
-mapper_services.register(
-    ProductSaveDTO,
-    Product,
-    map_partial
-) 
-   
-mapper_services.register(
-    Product,
-    ProductReadDTO,
-    lambda src : {
-        "id":src["id"],
-        "name_category":f'{src["name"]} {src["category"]}' if src["category"] is not None else src["name"]
-    }
-)
 query_services = QueryServices()
-
-class ProductsRepository(BaseRepository[Product]):
-    def __init__(self, 
-                 db_services: DbServices = None) -> None:
-        super().__init__(Product, db_services)
-
-class ProductsController(BaseController[Product]):
-    def __init__(self,
-                 repository:ProductsRepository,
-                 pagination_services: PaginationServices = None) -> None:
-        super().__init__(repository,
-                         pagination_services,
-                         )
-    def create(self, 
-               item: ProductSaveDTO):
-        return super().create(item, Product, ProductReadDTO)
-    
-    def read(self,
-        query: Annotated[Query, Depends(query_services.handle_query)]):
-        return super().read(ProductReadDTO, query)
-    
-    def read_by_id(self, id: int) :
-        return super().read_by_id(id, ProductReadDTO)
-
-    def update_by_id(self, 
-                     id: int, 
-                     partial_data: dict):
-        return super().update_by_id(id, 
-                                    partial_data, 
-                                    ProductSaveDTO, 
-                                    Product)
 
 
 @pytest.fixture
 def controller():
-    db_services = MockDbServices()
-    engine = db_services.get_engine()
-    meta.create_all(engine)
-
-    return ProductsController( repository=ProductsRepository(db_services=db_services))
+    return ProductsController()
 
 @pytest.mark.parametrize("limit,page,expected_pages,expected_items", 
                          [(3,1,2,3),
@@ -156,7 +99,8 @@ def test_controller_read_by_id(controller,id, found):
 def test_controller_update_by_id(controller, id, partial_data, expected_name_category):
     controller.create(ProductSaveDTO(
         product_category="Food",
-        product_name=f"Apple"
+        product_name=f"Apple",
+        product_price=20
     ))
        
 
@@ -167,6 +111,7 @@ def test_controller_update_by_id(controller, id, partial_data, expected_name_cat
         )
         updated_item = controller.read_by_id(id)
         assert updated_item.name_category == expected_name_category
+        assert updated_item.price == 20
     else:
         with pytest.raises(HTTPException) as ex:
             controller.update_by_id(

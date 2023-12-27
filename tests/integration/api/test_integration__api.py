@@ -1,8 +1,7 @@
 from fastapi.testclient import TestClient
 from fastapi import FastAPI, Depends
-from tests.mock_db_services import MockDbServices
+from tests.modules.db_services import DbServices
 from sqlalchemy import Table, Column, MetaData,Integer,Text,Float, String, DateTime, ForeignKey, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
 from ez_rest.modules.crud.models import BaseModel, BaseDTO
 from typing import List, Optional, Type, Annotated
 from ez_rest.modules.mapper.services import mapper_services
@@ -14,6 +13,10 @@ from ez_rest.modules.query.services import QueryServices
 from ez_rest.modules.db.services import DbServices
 from ez_rest.modules.pagination.services import PaginationServices
 from ez_rest.modules.pagination.models import PaginationDTO
+from tests.modules.tables import create_tables
+from tests.modules.products.controller import ProductsController
+from tests.modules.products.repository import ProductsRepository
+from tests.modules.products.models import Product, ProductReadDTO, ProductSaveDTO
 import pytest
 import random
 
@@ -22,67 +25,19 @@ from pydantic import BaseModel as PydanticModel
 query_services = QueryServices()
 
 
-mapper_services.register(
-    ProductPartialDTO2,
-    Product2,
-    lambda src : {
-        "id":src["id"],
-        "name":src["name"],
-        "category":src["category"],
-        "price":src["price"]
-    }
-) 
-
-mapper_services.register(
-    ProductSaveDTO2,
-    Product2,
-    lambda src : {
-        "id":src["id"],
-        "name":src["name"],
-        "category":src["category"],
-        "price":src["price"]
-    }
-) 
-
-def map_partial(src):
-    data = src.__dict__
-    new_data =  {
-        
-    }
-    if 'id' in data:
-        new_data['id'] = src["id"]
-    if 'price' in data:
-        new_data['price'] = src["price"]
-    if 'name' in data:
-        new_data['name'] = src["name"]
-    if 'category' in data:
-        new_data['category'] = src["category"]
-    return new_data
-
-mapper_services.register(
-    Product2,
-    ProductPartialDTO2,
-    map_partial
-) 
-
 @pytest.fixture
 def client():
-    db_services = MockDbServices()
-    engine = db_services.get_engine()
-    meta.create_all(engine)
-
-    products_controller = ProductsController(
-        repository=ProductsRepository(db_services)
-    )
+    products_controller = ProductsController()
     
     app = FastAPI()
     app.add_api_route('/products', 
                       products_controller.create,
-                      methods=['POST'])
+                      methods=['POST'],
+                      response_model=ProductReadDTO)
     app.add_api_route('/products', 
                     products_controller.read,
                     methods=['GET'],
-                    response_model=PaginationDTO[ProductPartialDTO2])
+                    response_model=PaginationDTO[ProductReadDTO])
     return TestClient(app) 
 
 
@@ -90,15 +45,14 @@ def test_api_create(client):
     count = 100
     for i  in range(count):
         response = client.post('/products', json={
-            "name":f"Apple {i}",
-            "category":f"Food {i}",
-            "price":1000
+            "product_name":f"Apple {i}",
+            "product_category":f"Food {i}",
+            "product_price":1000
         })
+        print(response.text)
         data = response.json()
-        
         assert data["id"] == i + 1
-        assert data["name"] == f"Apple {i}"
-        assert data["category"] == f"Food {i}"
+        assert data["name_category"] == f"Apple {i} Food {i}"
 
     response = client.get('/products?limit=1&page=1')
     data =  response.json()
@@ -139,29 +93,29 @@ def test_api_read(client, count, limit, page, pages_count):
 def test_api_read__filter_order(client, filter, order_by, expected_ids):
     items = [
         {
-            "name":f"Apple",
-            "category":"Vegetables",
-            "price": "100"
+            "product_name":f"Apple",
+            "product_category":"Vegetables",
+            "product_price": 100
         },
         {
-            "name":f"Carrot",
-            "category":"Vegetables",
-            "price": "20"
+            "product_name":f"Carrot",
+            "product_category":"Vegetables",
+            "product_price": 20
         },
         {
-            "name":f"Tomato",
-            "category":"Vegetables",
-            "price": "30"
+            "product_name":f"Tomato",
+            "product_category":"Vegetables",
+            "product_price": 30
         },
         {
-            "name":f"Potato",
-            "category":"Vegetables",
-            "price": "50"
+            "product_name":f"Potato",
+            "product_category":"Vegetables",
+            "product_price": 50
         },
         {
-            "name":f"Pineapple",
-            "category":"Fruits",
-            "price": "150"
+            "product_name":f"Pineapple",
+            "product_category":"Fruits",
+            "product_price": 150
         }
     ]
     for item in items:
@@ -169,6 +123,7 @@ def test_api_read__filter_order(client, filter, order_by, expected_ids):
     response = client.get(f'/products?limit=20&page=1&filter={filter}&order_by={order_by}')
 
     data = response.json()
+
     assert [i["id"] for i in data["items"]] == expected_ids
 
 
@@ -181,15 +136,14 @@ def test_api_read__filter_order(client, filter, order_by, expected_ids):
  ])
 def test_api_read__fields(client, fields):
 
-    client.post('/products', json={
-            "name":f"Apple",
-            "category":"Vegetables",
-            "price": "100"
+    r = client.post('/products', json={
+            "product_name":f"Apple",
+            "product_category":"Vegetables",
+            "product_price": 100
     })
-
     response = client.get(f'/products?page=1&limit=20&fields={fields}')
     data = response.json()['items'][0]
-    
+   
     if 'category' in fields:
         assert data['category'] is not None
     else:

@@ -1,7 +1,6 @@
 from typing import Type
 import pytest
 from ez_rest.modules.jwt.services import JWTServices
-from tests.mock_db_services import MockDbServices
 from ez_rest.modules.role.models import RoleModel
 from ez_rest.modules.role.repository import RoleRepository
 from ez_rest.modules.base_user.services import BaseUserServices
@@ -19,67 +18,20 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import BigInteger
 from sqlalchemy import Table, Column, MetaData, Integer,Text, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
+from tests.modules.users.repository import UserRepository
+from tests.modules.users.services import UserServices
+from tests.modules.users.models import UserModel
+from tests.modules.roles.repository import RoleRepository
 
-meta = MetaData()
-users = Table(
-    'users',
-    meta,
-    Column('created_at',DateTime),
-    Column('updated_at',DateTime),
-    Column('deleted_at',DateTime),
-    Column('id', Integer, primary_key=True),
-    Column('role_id',Integer, ForeignKey(RoleModel.id)),
-    Column('password', String),
-    Column('username',String),
-    Column('phone',String)
-)
-roles = Table(
-    'roles',
-    meta,
-    Column('created_at',DateTime),
-    Column('updated_at',DateTime),
-    Column('deleted_at',DateTime),
-    Column('id', Integer, primary_key=True),
-    Column('name',String),
-    Column('is_admin', Boolean),
-    Column('scopes', Text)
-)
-
-
-class UserModel(BaseUserModel):
-    #__abstract__ = True
-    username:Mapped[str] = mapped_column(String(100))
-    phone:Mapped[str] = mapped_column(String(100))
-    #role:RoleModel = Relationship(sa_relationship=relationship("RoleModel", lazy="joined"))
-
-class UserRepository(BaseUserRepository[UserModel]):
-    #_identity_fields = ['username','phone']
-
-    def __init__(self, 
-                 db_services: DbServices = None, 
-                 password_services: PaswordServices = None) -> None:
-        super().__init__(UserModel, db_services, password_services)
-
-class UserServices(BaseUserServices[UserModel]):
-    _identity_fields = ['username','phone']
-    _subject_claim_field = "username"
 
 
 @pytest.fixture
 def repository():
-    db_services = MockDbServices()
-    engine = db_services.get_engine()
-    meta.create_all(engine)
-
-    return UserRepository(db_services=db_services)
+    return UserRepository()
 
 @pytest.fixture
 def role_repository():
-    db_services = MockDbServices()
-    engine = db_services.get_engine()
-    meta.create_all(engine)
-
-    return RoleRepository(db_services=db_services)
+    return RoleRepository()
 
 
 @pytest.mark.parametrize("identity_value, password, expected_id", 
